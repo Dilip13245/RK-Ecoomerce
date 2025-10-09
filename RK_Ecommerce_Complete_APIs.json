@@ -1,0 +1,592 @@
+{
+	"info": {
+		"name": "RK E-commerce - All APIs",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{"key": "base_url", "value": "http://localhost:8000"},
+		{"key": "token", "value": ""},
+		{"key": "api_key", "value": ""}
+	],
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Register",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\",\n    \"email\": \"john@example.com\",\n    \"phone\": \"9876543210\",\n    \"password\": \"password123\",\n    \"user_type\": \"customer\"\n}"},
+						"url": {"raw": "{{base_url}}/api/auth/register", "host": ["{{base_url}}"], "path": ["api", "auth", "register"]}
+					}
+				},
+				{
+					"name": "Send OTP",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n    \"phone\": \"9876543210\"\n}"},
+						"url": {"raw": "{{base_url}}/api/auth/send-otp", "host": ["{{base_url}}"], "path": ["api", "auth", "send-otp"]}
+					}
+				},
+				{
+					"name": "Verify OTP",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n    \"phone\": \"9876543210\",\n    \"otp\": \"123456\"\n}"},
+						"url": {"raw": "{{base_url}}/api/auth/verify-otp", "host": ["{{base_url}}"], "path": ["api", "auth", "verify-otp"]}
+					}
+				},
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n    \"email\": \"john@example.com\",\n    \"password\": \"password123\"\n}"},
+						"url": {"raw": "{{base_url}}/api/auth/login", "host": ["{{base_url}}"], "path": ["api", "auth", "login"]}
+					}
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{}"},
+						"url": {"raw": "{{base_url}}/api/auth/logout", "host": ["{{base_url}}"], "path": ["api", "auth", "logout"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "Profile",
+			"item": [
+				{
+					"name": "Get Profile",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{}"},
+						"url": {"raw": "{{base_url}}/api/user/profile", "host": ["{{base_url}}"], "path": ["api", "user", "profile"]}
+					}
+				},
+				{
+					"name": "Update Profile",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n    \"first_name\": \"John Updated\",\n    \"last_name\": \"Doe\",\n    \"phone\": \"9876543210\"\n}"},
+						"url": {"raw": "{{base_url}}/api/user/profile/update", "host": ["{{base_url}}"], "path": ["api", "user", "profile", "update"]}
+					}
+				},
+				{
+					"name": "Change Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n    \"old_password\": \"password123\",\n    \"new_password\": \"newpass123\"\n}"},
+						"url": {"raw": "{{base_url}}/api/user/profile/change-password", "host": ["{{base_url}}"], "path": ["api", "user", "profile", "change-password"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "Address",
+			"item": [
+				{
+					"name": "List Addresses",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{}"},
+						"url": {"raw": "{{base_url}}/api/user/address", "host": ["{{base_url}}"], "path": ["api", "user", "address"]}
+					}
+				},
+				{
+					"name": "Add Address",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\",\n    \"phone\": \"9876543210\",\n    \"address_line\": \"123 Main St\",\n    \"city\": \"Mumbai\",\n    \"state\": \"Maharashtra\",\n    \"postal_code\": \"400001\",\n    \"is_default\": 1\n}"},
+						"url": {"raw": "{{base_url}}/api/user/address/add", "host": ["{{base_url}}"], "path": ["api", "user", "address", "add"]}
+					}
+				},
+				{
+					"name": "Update Address",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n    \"address_id\": 1,\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\",\n    \"phone\": \"9876543210\",\n    \"address_line\": \"456 Updated St\",\n    \"city\": \"Mumbai\",\n    \"state\": \"Maharashtra\",\n    \"postal_code\": \"400002\"\n}"},
+						"url": {"raw": "{{base_url}}/api/user/address/update", "host": ["{{base_url}}"], "path": ["api", "user", "address", "update"]}
+					}
+				},
+				{
+					"name": "Delete Address",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n    \"address_id\": 1\n}"},
+						"url": {"raw": "{{base_url}}/api/user/address/delete", "host": ["{{base_url}}"], "path": ["api", "user", "address", "delete"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "Banking",
+			"item": [
+				{
+					"name": "Get Bank Details",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{}"},
+						"url": {"raw": "{{base_url}}/api/user/bank", "host": ["{{base_url}}"], "path": ["api", "user", "bank"]}
+					}
+				},
+				{
+					"name": "Create Bank Details",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n    \"account_holder_name\": \"John Doe\",\n    \"account_number\": \"1234567890\",\n    \"bank_name\": \"HDFC Bank\",\n    \"ifsc_code\": \"HDFC0001234\",\n    \"branch_name\": \"Mumbai Branch\"\n}"},
+						"url": {"raw": "{{base_url}}/api/user/bank/create", "host": ["{{base_url}}"], "path": ["api", "user", "bank", "create"]}
+					}
+				},
+				{
+					"name": "Update Bank Details",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n    \"bank_id\": 1,\n    \"account_holder_name\": \"John Doe Updated\",\n    \"account_number\": \"9876543210\",\n    \"bank_name\": \"ICICI Bank\",\n    \"ifsc_code\": \"ICIC0001234\",\n    \"branch_name\": \"Delhi Branch\"\n}"},
+						"url": {"raw": "{{base_url}}/api/user/bank/update", "host": ["{{base_url}}"], "path": ["api", "user", "bank", "update"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "Categories",
+			"item": [
+				{
+					"name": "List Categories",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/categories", "host": ["{{base_url}}"], "path": ["api", "categories"]}
+					}
+				},
+				{
+					"name": "List Subcategories",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n    \"category_id\": 1\n}"},
+						"url": {"raw": "{{base_url}}/api/categories/subcategories", "host": ["{{base_url}}"], "path": ["api", "categories", "subcategories"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "Products",
+			"item": [
+				{
+					"name": "Create Product",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{"key": "title", "value": "Test Product", "type": "text"},
+								{"key": "description", "value": "Product description", "type": "text"},
+								{"key": "category_id", "value": "1", "type": "text"},
+								{"key": "subcategory_id", "value": "1", "type": "text"},
+								{"key": "price", "value": "999", "type": "text"},
+								{"key": "specifications", "value": "{\"material\": \"Cotton\"}", "type": "text"},
+								{"key": "images[]", "type": "file", "src": []},
+								{"key": "colors[0][color_name]", "value": "Red", "type": "text"},
+								{"key": "colors[0][color_value]", "value": "#FF0000", "type": "text"},
+								{"key": "colors[0][stock]", "value": "10", "type": "text"}
+							]
+						},
+						"url": {"raw": "{{base_url}}/api/user/products/create", "host": ["{{base_url}}"], "path": ["api", "user", "products", "create"]}
+					}
+				},
+				{
+					"name": "List Products",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{}"},
+						"url": {"raw": "{{base_url}}/api/user/products/list", "host": ["{{base_url}}"], "path": ["api", "user", "products", "list"]}
+					}
+				},
+				{
+					"name": "Product Detail",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n    \"product_id\": 1\n}"},
+						"url": {"raw": "{{base_url}}/api/user/products/detail", "host": ["{{base_url}}"], "path": ["api", "user", "products", "detail"]}
+					}
+				},
+				{
+					"name": "Edit Product",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{"key": "product_id", "value": "1", "type": "text"},
+								{"key": "title", "value": "Updated Product", "type": "text"},
+								{"key": "price", "value": "1299", "type": "text"}
+							]
+						},
+						"url": {"raw": "{{base_url}}/api/user/products/edit", "host": ["{{base_url}}"], "path": ["api", "user", "products", "edit"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "Wishlist",
+			"item": [
+				{
+					"name": "Get Wishlist",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{}"},
+						"url": {"raw": "{{base_url}}/api/user/wishlist", "host": ["{{base_url}}"], "path": ["api", "user", "wishlist"]}
+					}
+				},
+				{
+					"name": "Add to Wishlist",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n    \"product_id\": 1\n}"},
+						"url": {"raw": "{{base_url}}/api/user/products/wishlist/add", "host": ["{{base_url}}"], "path": ["api", "user", "products", "wishlist", "add"]}
+					}
+				},
+				{
+					"name": "Remove from Wishlist",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n    \"product_id\": 1\n}"},
+						"url": {"raw": "{{base_url}}/api/user/products/wishlist/remove", "host": ["{{base_url}}"], "path": ["api", "user", "products", "wishlist", "remove"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "Cart",
+			"item": [
+				{
+					"name": "Get Cart",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{}"},
+						"url": {"raw": "{{base_url}}/api/user/cart", "host": ["{{base_url}}"], "path": ["api", "user", "cart"]}
+					}
+				},
+				{
+					"name": "Add to Cart",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n    \"product_id\": 1,\n    \"product_color_id\": 1,\n    \"quantity\": 2\n}"},
+						"url": {"raw": "{{base_url}}/api/user/products/cart/add", "host": ["{{base_url}}"], "path": ["api", "user", "products", "cart", "add"]}
+					}
+				},
+				{
+					"name": "Update Cart Quantity",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n    \"cart_id\": 1,\n    \"quantity\": 3\n}"},
+						"url": {"raw": "{{base_url}}/api/user/cart/update-quantity", "host": ["{{base_url}}"], "path": ["api", "user", "cart", "update-quantity"]}
+					}
+				},
+				{
+					"name": "Remove from Cart",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n    \"cart_id\": 1\n}"},
+						"url": {"raw": "{{base_url}}/api/user/cart/remove", "host": ["{{base_url}}"], "path": ["api", "user", "cart", "remove"]}
+					}
+				},
+				{
+					"name": "Clear Cart",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{}"},
+						"url": {"raw": "{{base_url}}/api/user/cart/clear", "host": ["{{base_url}}"], "path": ["api", "user", "cart", "clear"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "Coupons",
+			"item": [
+				{
+					"name": "List Coupons",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{}"},
+						"url": {"raw": "{{base_url}}/api/user/coupons", "host": ["{{base_url}}"], "path": ["api", "user", "coupons"]}
+					}
+				},
+				{
+					"name": "Validate Coupon",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n    \"coupon_code\": \"SAVE10\",\n    \"subtotal\": 1000\n}"},
+						"url": {"raw": "{{base_url}}/api/user/coupons/validate", "host": ["{{base_url}}"], "path": ["api", "user", "coupons", "validate"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "Orders - Customer",
+			"item": [
+				{
+					"name": "Create Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n    \"address_id\": 1,\n    \"payment_method\": \"cash_on_delivery\",\n    \"coupon_code\": \"SAVE10\"\n}"},
+						"url": {"raw": "{{base_url}}/api/user/orders/create", "host": ["{{base_url}}"], "path": ["api", "user", "orders", "create"]}
+					}
+				},
+				{
+					"name": "List Orders",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{}"},
+						"url": {"raw": "{{base_url}}/api/user/orders/list", "host": ["{{base_url}}"], "path": ["api", "user", "orders", "list"]}
+					}
+				},
+				{
+					"name": "Order Details",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n    \"order_id\": 1\n}"},
+						"url": {"raw": "{{base_url}}/api/user/orders/details", "host": ["{{base_url}}"], "path": ["api", "user", "orders", "details"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "Orders - Seller",
+			"item": [
+				{
+					"name": "List Seller Orders",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n    \"status_filter\": \"all\"\n}"},
+						"url": {"raw": "{{base_url}}/api/user/seller/orders/list", "host": ["{{base_url}}"], "path": ["api", "user", "seller", "orders", "list"]}
+					}
+				},
+				{
+					"name": "Seller Order Details",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n    \"item_id\": 1\n}"},
+						"url": {"raw": "{{base_url}}/api/user/seller/orders/details", "host": ["{{base_url}}"], "path": ["api", "user", "seller", "orders", "details"]}
+					}
+				},
+				{
+					"name": "Update Order Status",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n    \"item_id\": 1,\n    \"status\": \"confirmed\"\n}"},
+						"url": {"raw": "{{base_url}}/api/user/seller/orders/update-status", "host": ["{{base_url}}"], "path": ["api", "user", "seller", "orders", "update-status"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "Notifications",
+			"item": [
+				{
+					"name": "List Notifications",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{}"},
+						"url": {"raw": "{{base_url}}/api/user/notifications", "host": ["{{base_url}}"], "path": ["api", "user", "notifications"]}
+					}
+				},
+				{
+					"name": "Mark as Read",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n    \"notification_id\": 1\n}"},
+						"url": {"raw": "{{base_url}}/api/user/notifications/mark-read", "host": ["{{base_url}}"], "path": ["api", "user", "notifications", "mark-read"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "Help & Support",
+			"item": [
+				{
+					"name": "Submit Help Support",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "token", "value": "{{token}}"},
+							{"key": "api-key", "value": "{{api_key}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n    \"subject\": \"Need help\",\n    \"message\": \"I have an issue\"\n}"},
+						"url": {"raw": "{{base_url}}/api/user/help-support", "host": ["{{base_url}}"], "path": ["api", "user", "help-support"]}
+					}
+				}
+			]
+		}
+	]
+}

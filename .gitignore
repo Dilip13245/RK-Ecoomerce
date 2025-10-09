@@ -1,0 +1,47 @@
+# Laravel
+/vendor
+/node_modules
+/public/hot
+/public/build
+/public/storage
+/storage/*.key
+/storage/pail
+
+# IDE
+/.idea
+/.vscode
+/.fleet
+/.nova
+/.zed
+.phpactor.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.phpunit.result.cache
+/.phpunit.cache
+
+# Logs
+*.log
+/storage/logs/*.log
+
+# Cache
+/bootstrap/cache/*
+!/bootstrap/cache/.gitignore
+/storage/framework/cache/*
+!/storage/framework/cache/.gitignore
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitignore
+/storage/framework/views/*
+!/storage/framework/views/.gitignore
+
+# Uploads (keep structure, ignore files)
+/storage/app/public/*
+!/storage/app/public/.gitignore
+
+# Auth
+/auth.json
+Homestead.json
+Homestead.yaml
