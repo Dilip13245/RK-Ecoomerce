@@ -54,7 +54,7 @@ class OrderController extends Controller
                 if ($cartItem->product_color_id) {
                     $color = ProductColor::find($cartItem->product_color_id);
                     if (!$color || $color->stock < $cartItem->quantity) {
-                        return $this->toJsonEnc([], 'Insufficient stock for ' . $cartItem->product->title, Config::get('constant.ERROR'));
+                        return $this->toJsonEnc([], 'Insufficient stock for ' . $cartItem->product->name, Config::get('constant.ERROR'));
                     }
                 }
             }
@@ -63,7 +63,8 @@ class OrderController extends Controller
 
             // Calculate totals
             $subtotal = $cartItems->sum(function ($item) {
-                return $item->price * $item->quantity;
+                $price = $item->product->discounted_price ?? $item->product->price;
+                return $price * $item->quantity;
             });
 
             $discountAmount = 0;
@@ -103,18 +104,20 @@ class OrderController extends Controller
 
             // Create order items
             foreach ($cartItems as $cartItem) {
+                $unitPrice = $cartItem->product->discounted_price ?? $cartItem->product->price;
+                
                 OrderItem::create([
                     'order_id' => $order->id,
                     'user_id' => $request->user_id,
                     'seller_id' => $cartItem->product->user_id,
                     'product_id' => $cartItem->product_id,
                     'product_color_id' => $cartItem->product_color_id,
-                    'product_title' => $cartItem->product->title,
+                    'product_title' => $cartItem->product->name,
                     'color_name' => $cartItem->productColor->color_name ?? null,
-                    'color_value' => $cartItem->productColor->color_value ?? null,
+                    'color_code' => $cartItem->productColor->color_code ?? null,
                     'quantity' => $cartItem->quantity,
-                    'unit_price' => $cartItem->price,
-                    'total_price' => $cartItem->price * $cartItem->quantity,
+                    'unit_price' => $unitPrice,
+                    'total_price' => $unitPrice * $cartItem->quantity,
                     'item_status' => 'pending',
                 ]);
 
@@ -175,7 +178,7 @@ class OrderController extends Controller
 
                 $productImageUrl = null;
                 if ($images && count($images) > 0) {
-                    $productImageUrl = asset('uploads/products/' . $images[0]);
+                    $productImageUrl = asset('storage/products/' . $images[0]);
                 }
 
                 return [
@@ -183,13 +186,13 @@ class OrderController extends Controller
                     'product_id' => $item->product_id,
                     'product_title' => $item->product_title,
                     'color_name' => $item->color_name,
-                    'color_value' => $item->color_value,
+                    'color_code' => $item->color_code,
                     'quantity' => $item->quantity,
                     'unit_price' => $item->unit_price,
                     'total_price' => $item->total_price,
                     'item_status' => $item->item_status,
                     'product_image' => $productImageUrl,
-                    'seller_name' => $item->seller ? trim($item->seller->first_name . ' ' . $item->seller->last_name) : null,
+                    'seller_name' => $item->seller ? $item->seller->name : null,
                 ];
             })->toArray();
 
@@ -214,11 +217,12 @@ class OrderController extends Controller
 
                 // Address details
                 'shipping_address' => [
-                    'name' => trim($order->address->first_name . ' ' . $order->address->last_name),
+                    'name' => $order->address->name,
                     'phone' => $order->address->phone,
-                    'address' => $order->address->address_line,
+                    'address' => $order->address->address,
                     'city' => $order->address->city,
-                    'postal_code' => $order->address->postal_code,
+                    'state' => $order->address->state,
+                    'pincode' => $order->address->pincode,
                 ],
 
                 // Order items
@@ -256,7 +260,7 @@ class OrderController extends Controller
 
                 $productImageUrl = null;
                 if ($images && count($images) > 0) {
-                    $productImageUrl = asset('uploads/products/' . $images[0]);
+                    $productImageUrl = asset('storage/products/' . $images[0]);
                 }
 
                 return [

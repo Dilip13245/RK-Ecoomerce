@@ -37,9 +37,9 @@ Route::prefix('categories')->group(function () {
 Route::prefix('user')->middleware(['tokencheck'])->group(function () {
     
     Route::prefix('profile')->group(function () {
-        Route::get('/', [\App\Http\Controllers\Api\AuthController::class, 'getProfile']);
-        Route::post('/update', [\App\Http\Controllers\Api\AuthController::class, 'updateProfile']);
-        Route::post('/change-password', [\App\Http\Controllers\Api\AuthController::class, 'changePassword']);
+        Route::get('/', [\App\Http\Controllers\Api\ProfileController::class, 'getProfile']);
+        Route::post('/update', [\App\Http\Controllers\Api\ProfileController::class, 'updateProfile']);
+        Route::post('/change-password', [\App\Http\Controllers\Api\ProfileController::class, 'changePassword']);
     });
     
     Route::prefix('address')->group(function () {
