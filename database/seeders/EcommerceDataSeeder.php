@@ -294,18 +294,24 @@ class EcommerceDataSeeder extends Seeder
             'delivered_at' => now()->subDays(2),
         ]);
 
+        $firstProduct = Product::first();
+        $firstColor = ProductColor::where('product_id', $firstProduct->id)->first();
+        
+        $lastProduct = Product::latest()->first();
+        $lastColor = ProductColor::where('product_id', $lastProduct->id)->first();
+
         OrderItem::create([
             'order_id' => $order->id,
             'user_id' => $customer->id,
             'seller_id' => $seller->id,
-            'product_id' => 1,
-            'product_color_id' => 1,
-            'product_title' => 'iPhone 15 Pro Max',
-            'color_name' => 'Natural Titanium',
-            'color_value' => '#8B8B8B',
+            'product_id' => $firstProduct->id,
+            'product_color_id' => $firstColor->id,
+            'product_title' => $firstProduct->name,
+            'color_name' => $firstColor->color_name,
+            'color_value' => $firstColor->color_code,
             'quantity' => 1,
-            'unit_price' => 149900,
-            'total_price' => 149900,
+            'unit_price' => $firstProduct->discounted_price ?? $firstProduct->price,
+            'total_price' => $firstProduct->discounted_price ?? $firstProduct->price,
             'item_status' => 'delivered',
         ]);
 
@@ -313,14 +319,14 @@ class EcommerceDataSeeder extends Seeder
             'order_id' => $order->id,
             'user_id' => $customer->id,
             'seller_id' => $seller->id,
-            'product_id' => 5,
-            'product_color_id' => 13,
-            'product_title' => 'Men\'s Cotton T-Shirt',
-            'color_name' => 'Black',
-            'color_value' => '#000000',
+            'product_id' => $lastProduct->id,
+            'product_color_id' => $lastColor->id,
+            'product_title' => $lastProduct->name,
+            'color_name' => $lastColor->color_name,
+            'color_value' => $lastColor->color_code,
             'quantity' => 1,
-            'unit_price' => 599,
-            'total_price' => 599,
+            'unit_price' => $lastProduct->discounted_price ?? $lastProduct->price,
+            'total_price' => $lastProduct->discounted_price ?? $lastProduct->price,
             'item_status' => 'delivered',
         ]);
     }

@@ -36,9 +36,10 @@ class User extends Authenticatable implements FilamentUser
      */
     protected $hidden = [
         'password',
-        'remember_token',
         'otp',
     ];
+    
+    public $rememberTokenName = null;
 
     /**
      * The attributes that should be cast to native types.
