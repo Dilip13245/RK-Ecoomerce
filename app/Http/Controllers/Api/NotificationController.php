@@ -13,7 +13,7 @@ class NotificationController extends Controller
     {
         try {
             $notifications = Notification::where('user_id', $request->user_id)
-                ->where('is_active', 1)
+                ->where('is_active', true)
                 ->orderBy('created_at', 'desc')
                 ->get();
 

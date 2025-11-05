@@ -46,14 +46,14 @@ class SellerOrderController extends Controller
 
                 $productImageUrl = null;
                 if ($images && count($images) > 0) {
-                    $productImageUrl = asset('uploads/products/' . $images[0]);
+                    $productImageUrl = asset('storage/products/' . $images[0]);
                 }
 
                 return [
                     'order_id' => $item->order_id,
                     'item_id' => $item->id,
-                    'order_number' => $item->order->order_number,
-                    'customer_name' => trim($item->order->user->first_name . ' ' . $item->order->user->last_name),
+                    'order_number' => $item->order ? $item->order->order_number : null,
+                    'customer_name' => $item->order && $item->order->user ? $item->order->user->name : null,
                     'product_title' => $item->product_title,
                     'product_image' => $productImageUrl,
                     'color_name' => $item->color_name,
@@ -62,7 +62,7 @@ class SellerOrderController extends Controller
                     'total_price' => $item->total_price,
                     'item_status' => $item->item_status,
                     'created_at' => $item->created_at,
-                    'payment_method' => $item->order->payment_method,
+                    'payment_method' => $item->order ? $item->order->payment_method : null,
                     'can_confirm' => $item->item_status === 'pending',
                     'can_ship' => $item->item_status === 'confirmed',
                     'can_deliver' => $item->item_status === 'shipped',
@@ -104,15 +104,15 @@ class SellerOrderController extends Controller
 
             $productImageUrl = null;
             if ($images && count($images) > 0) {
-                $productImageUrl = asset('uploads/products/' . $images[0]);
+                $productImageUrl = asset('storage/products/' . $images[0]);
             }
 
             $orderData = [
                 'order_id' => $orderItem->order_id,
                 'item_id' => $orderItem->id,
-                'order_number' => $orderItem->order->order_number,
-                'customer_name' => trim($orderItem->order->user->first_name . ' ' . $orderItem->order->user->last_name),
-                'customer_phone' => $orderItem->order->user->phone,
+                'order_number' => $orderItem->order ? $orderItem->order->order_number : null,
+                'customer_name' => $orderItem->order && $orderItem->order->user ? $orderItem->order->user->name : null,
+                'customer_phone' => $orderItem->order && $orderItem->order->user ? $orderItem->order->user->phone : null,
                 'product_title' => $orderItem->product_title,
                 'product_image' => $productImageUrl,
                 'color_name' => $orderItem->color_name,
@@ -120,15 +120,15 @@ class SellerOrderController extends Controller
                 'unit_price' => $orderItem->unit_price,
                 'total_price' => $orderItem->total_price,
                 'item_status' => $orderItem->item_status,
-                'payment_method' => $orderItem->order->payment_method,
+                'payment_method' => $orderItem->order ? $orderItem->order->payment_method : null,
                 'created_at' => $orderItem->created_at,
-                'shipping_address' => [
-                    'name' => trim($orderItem->order->address->first_name . ' ' . $orderItem->order->address->last_name),
-                    'phone' => $orderItem->order->address->phone,
-                    'address' => $orderItem->order->address->address_line,
-                    'city' => $orderItem->order->address->city,
-                    'postal_code' => $orderItem->order->address->postal_code,
-                ],
+                'shipping_address' => ($orderItem->order && $orderItem->order->address) ? [
+                    'name' => $orderItem->order->address->full_name,
+                    'block_number' => $orderItem->order->address->block_number,
+                    'building_name' => $orderItem->order->address->building_name,
+                    'area_street' => $orderItem->order->address->area_street,
+                    'state' => $orderItem->order->address->state,
+                ] : null,
             ];
 
             return $this->toJsonEnc($orderData, 'Order details retrieved successfully', Config::get('constant.SUCCESS'));
@@ -158,7 +158,7 @@ class SellerOrderController extends Controller
             }
 
             $orderItem->item_status = $request->status;
-            if ($request->status === 'delivered') {
+            if ($request->status === 'delivered' && $orderItem->order) {
                 $orderItem->order->delivered_at = now();
                 $orderItem->order->save();
             }

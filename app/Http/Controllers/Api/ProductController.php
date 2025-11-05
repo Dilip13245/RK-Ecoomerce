@@ -21,12 +21,12 @@ class ProductController extends Controller
             // Verify user is a seller
             $user = \App\Models\User::find($request->user_id);
             if (!$user || $user->user_type !== 'seller') {
-                return $this->toJsonEnc([], 'Only sellers can create products', \Illuminate\Support\Facades\Config::get('constant.ERROR'));
+                return $this->toJsonEnc([], 'Only sellers can create products', Config::get('constant.ERROR'));
             }
 
             // Verify seller is active and verified
             if ($user->status !== 'active' || !$user->is_verified) {
-                return $this->toJsonEnc([], 'Seller account must be active and verified', \Illuminate\Support\Facades\Config::get('constant.ERROR'));
+                return $this->toJsonEnc([], 'Seller account must be active and verified', Config::get('constant.ERROR'));
             }
 
             $validator = Validator::make($request->all(), [
@@ -89,10 +89,10 @@ class ProductController extends Controller
                 return asset('storage/products/' . $image);
             }, $product->images);
 
-            return $this->toJsonEnc($product, 'Product created successfully', \Illuminate\Support\Facades\Config::get('constant.SUCCESS'));
+            return $this->toJsonEnc($product, 'Product created successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), \Illuminate\Support\Facades\Config::get('constant.INTERNAL_ERROR'));
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -353,6 +353,11 @@ class ProductController extends Controller
                 return $this->toJsonEnc([], 'Only sellers can edit products', Config::get('constant.ERROR'));
             }
 
+            // Verify seller is active and verified
+            if ($user->status !== 'active' || !$user->is_verified) {
+                return $this->toJsonEnc([], 'Seller account must be active and verified', Config::get('constant.ERROR'));
+            }
+
             $validator = Validator::make($request->all(), [
                 'product_id' => 'required|exists:products,id',
                 'name' => 'required|string|max:255',
@@ -377,7 +382,6 @@ class ProductController extends Controller
 
             $product = Product::where('id', $request->product_id)
                 ->where('user_id', $request->user_id)
-                ->active()
                 ->first();
 
             if (!$product) {
@@ -481,7 +485,7 @@ class ProductController extends Controller
                 }, $product->images);
                 
                 $product->first_image = $product->images[0] ?? null;
-                $product->seller_name = $product->user->name; // Get seller name from user relationship
+                $product->seller_name = $product->user ? $product->user->name : null; // Get seller name from user relationship
                 
                 // Calculate total price for this item
                 $itemPrice = $product->discounted_price ?? $product->price;

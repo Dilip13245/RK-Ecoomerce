@@ -8,19 +8,6 @@ use App\Models\SubCategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Config;
-
-class CategoryController extends Controller
-{
-    public function categoryList(Request $request)
-    {
-        try {
-            $categories = Category::active()
-                ->select('id', 'name', 'image')
-                ->orderBy('id', 'ASC')
-                ->get();
-
-            if ($categories->isEmpty()) {
-                return $this->toJsonEnc([], 'No categories found', Config::get('constant.NOT_FOUND'));
             }
 
             $result = [];
