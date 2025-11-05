@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\UserWishlist;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Config;
 
 class WishlistController extends Controller
 {
@@ -19,7 +20,7 @@ class WishlistController extends Controller
                 ->toArray();
 
             if (empty($productIds)) {
-                return $this->toJsonEnc([], 'Wishlist is empty', 404);
+                return $this->toJsonEnc([], 'Wishlist is empty', Config::get('constant.NOT_FOUND'));
             }
 
             $products = Product::with(['colors', 'category', 'subcategory'])
@@ -28,7 +29,7 @@ class WishlistController extends Controller
                 ->get();
 
             if ($products->isEmpty()) {
-                return $this->toJsonEnc([], 'No products found', 404);
+                return $this->toJsonEnc([], 'No products found', Config::get('constant.NOT_FOUND'));
             }
 
             $products->transform(function($product) {
@@ -44,10 +45,10 @@ class WishlistController extends Controller
                 return $product;
             });
 
-            return $this->toJsonEnc($products, 'Wishlist retrieved successfully', 200);
+            return $this->toJsonEnc($products, 'Wishlist retrieved successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 }

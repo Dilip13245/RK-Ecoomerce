@@ -11,6 +11,7 @@ use App\Models\HelpSupport;
 use App\Helpers\FileHelper;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Config;
 
 class ProfileController extends Controller
 {
@@ -20,13 +21,13 @@ class ProfileController extends Controller
             $user = User::find($request->user_id);
             
             if (!$user) {
-                return $this->toJsonEnc([], 'User not found', 404);
+                return $this->toJsonEnc([], 'User not found', Config::get('constant.NOT_FOUND'));
             }
 
-            return $this->toJsonEnc($user, 'Profile retrieved successfully', 200);
+            return $this->toJsonEnc($user, 'Profile retrieved successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -47,7 +48,7 @@ class ProfileController extends Controller
             $user = User::find($request->user_id);
             
             if (!$user) {
-                return $this->toJsonEnc([], 'User not found', 404);
+                return $this->toJsonEnc([], 'User not found', Config::get('constant.NOT_FOUND'));
             }
 
             $profileImage = $user->profile_image;
@@ -62,10 +63,10 @@ class ProfileController extends Controller
                 'profile_image' => $profileImage,
             ]);
 
-            return $this->toJsonEnc($user, 'Profile updated successfully', 200);
+            return $this->toJsonEnc($user, 'Profile updated successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -84,17 +85,17 @@ class ProfileController extends Controller
             $user = User::find($request->user_id);
             
             if (!$user || !Hash::check($request->current_password, $user->password)) {
-                return $this->toJsonEnc([], 'Current password is incorrect', 400);
+                return $this->toJsonEnc([], 'Current password is incorrect', Config::get('constant.ERROR'));
             }
 
             $user->update([
                 'password' => Hash::make($request->new_password)
             ]);
 
-            return $this->toJsonEnc([], 'Password changed successfully', 200);
+            return $this->toJsonEnc([], 'Password changed successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -104,17 +105,17 @@ class ProfileController extends Controller
             $user = User::find($request->user_id);
             
             if (!$user || $user->user_type !== 'seller') {
-                return $this->toJsonEnc([], 'Only sellers can access bank details', 403);
+                return $this->toJsonEnc([], 'Only sellers can access bank details', Config::get('constant.INACTIVE'));
             }
 
             $bankDetails = BankDetail::where('user_id', $request->user_id)
                 ->where('is_deleted', false)
                 ->get();
 
-            return $this->toJsonEnc($bankDetails, 'Bank details retrieved successfully', 200);
+            return $this->toJsonEnc($bankDetails, 'Bank details retrieved successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -134,7 +135,7 @@ class ProfileController extends Controller
             $user = User::find($request->user_id);
             
             if (!$user || $user->user_type !== 'seller') {
-                return $this->toJsonEnc([], 'Only sellers can create bank details', 403);
+                return $this->toJsonEnc([], 'Only sellers can create bank details', Config::get('constant.INACTIVE'));
             }
 
             $bankDetail = BankDetail::create([
@@ -146,10 +147,10 @@ class ProfileController extends Controller
                 'is_deleted' => false,
             ]);
 
-            return $this->toJsonEnc($bankDetail, 'Bank details created successfully', 200);
+            return $this->toJsonEnc($bankDetail, 'Bank details created successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -171,7 +172,7 @@ class ProfileController extends Controller
             $user = User::find($request->user_id);
             
             if (!$user || $user->user_type !== 'seller') {
-                return $this->toJsonEnc([], 'Only sellers can update bank details', 403);
+                return $this->toJsonEnc([], 'Only sellers can update bank details', Config::get('constant.INACTIVE'));
             }
 
             $bankDetail = BankDetail::where('id', $request->id)
@@ -179,7 +180,7 @@ class ProfileController extends Controller
                 ->first();
 
             if (!$bankDetail) {
-                return $this->toJsonEnc([], 'Bank details not found', 404);
+                return $this->toJsonEnc([], 'Bank details not found', Config::get('constant.NOT_FOUND'));
             }
 
             if ($request->delete) {
@@ -187,7 +188,7 @@ class ProfileController extends Controller
                     'is_active' => false,
                     'is_deleted' => true,
                 ]);
-                return $this->toJsonEnc([], 'Bank details deleted successfully', 200);
+                return $this->toJsonEnc([], 'Bank details deleted successfully', Config::get('constant.SUCCESS'));
             }
 
             $bankDetail->update([
@@ -197,10 +198,10 @@ class ProfileController extends Controller
                 'is_active' => true,
             ]);
 
-            return $this->toJsonEnc($bankDetail, 'Bank details updated successfully', 200);
+            return $this->toJsonEnc($bankDetail, 'Bank details updated successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -230,10 +231,10 @@ class ProfileController extends Controller
                 'is_deleted' => false,
             ]);
 
-            return $this->toJsonEnc($address, 'Address added successfully', 200);
+            return $this->toJsonEnc($address, 'Address added successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -259,7 +260,7 @@ class ProfileController extends Controller
                 ->first();
 
             if (!$address) {
-                return $this->toJsonEnc([], 'Address not found', 404);
+                return $this->toJsonEnc([], 'Address not found', Config::get('constant.NOT_FOUND'));
             }
 
             $address->update([
@@ -270,10 +271,10 @@ class ProfileController extends Controller
                 'state' => trim($request->state),
             ]);
 
-            return $this->toJsonEnc($address, 'Address updated successfully', 200);
+            return $this->toJsonEnc($address, 'Address updated successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -294,7 +295,7 @@ class ProfileController extends Controller
                 ->first();
 
             if (!$address) {
-                return $this->toJsonEnc([], 'Address not found', 404);
+                return $this->toJsonEnc([], 'Address not found', Config::get('constant.NOT_FOUND'));
             }
 
             $address->update([
@@ -302,10 +303,10 @@ class ProfileController extends Controller
                 'is_deleted' => true,
             ]);
 
-            return $this->toJsonEnc([], 'Address deleted successfully', 200);
+            return $this->toJsonEnc([], 'Address deleted successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -317,13 +318,13 @@ class ProfileController extends Controller
                 ->get();
 
             if ($addresses->isEmpty()) {
-                return $this->toJsonEnc([], 'No addresses found', 404);
+                return $this->toJsonEnc([], 'No addresses found', Config::get('constant.NOT_FOUND'));
             }
 
-            return $this->toJsonEnc($addresses, 'Addresses retrieved successfully', 200);
+            return $this->toJsonEnc($addresses, 'Addresses retrieved successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -348,10 +349,10 @@ class ProfileController extends Controller
                 'status' => 'pending',
             ]);
 
-            return $this->toJsonEnc($helpSupport, 'Help & support request submitted successfully', 200);
+            return $this->toJsonEnc($helpSupport, 'Help & support request submitted successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 }

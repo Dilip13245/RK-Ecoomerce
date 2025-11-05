@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\SubCategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Config;
 
 class CategoryController extends Controller
 {
@@ -19,7 +20,7 @@ class CategoryController extends Controller
                 ->get();
 
             if ($categories->isEmpty()) {
-                return $this->toJsonEnc([], 'No categories found', 404);
+                return $this->toJsonEnc([], 'No categories found', Config::get('constant.NOT_FOUND'));
             }
 
             $result = [];
@@ -51,10 +52,10 @@ class CategoryController extends Controller
                 ];
             }
 
-            return $this->toJsonEnc($result, 'Categories fetched successfully', 200);
+            return $this->toJsonEnc($result, 'Categories fetched successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -84,13 +85,13 @@ class CategoryController extends Controller
             }
 
             if ($subCategories->isEmpty()) {
-                return $this->toJsonEnc([], 'No subcategories found', 404);
+                return $this->toJsonEnc([], 'No subcategories found', Config::get('constant.NOT_FOUND'));
             }
 
-            return $this->toJsonEnc($subCategories, 'Subcategories fetched successfully', 200);
+            return $this->toJsonEnc($subCategories, 'Subcategories fetched successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 }

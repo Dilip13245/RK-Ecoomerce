@@ -12,7 +12,7 @@ class VerifyApiKey
     public function handle(Request $request, Closure $next): Response
     {
         if ($request->hasHeader('api-key')) {
-            if ($request->header('api-key') == config('app.api_key')) {
+            if ($request->header('api-key') == config('constant.API_KEY')) {
                 return $next($request);
             }
             return response()->json([

@@ -77,10 +77,10 @@ class AuthController extends Controller
                 ]);
             }
 
-            return $this->toJsonEnc($user, 'Registration successful. Please verify your phone number.', 200);
+            return $this->toJsonEnc($user, 'Registration successful. Please verify your phone number.', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -103,7 +103,7 @@ class AuthController extends Controller
                 ->first();
 
             if (!$user || !Hash::check($request->password, $user->password)) {
-                return $this->toJsonEnc([], 'Invalid credentials or account not verified', 401);
+                return $this->toJsonEnc([], 'Invalid credentials or account not verified', Config::get('constant.UNAUTHORIZED'));
             }
 
             $accessToken = Str::random(64);
@@ -124,10 +124,10 @@ class AuthController extends Controller
 
             $user->token = $accessToken;
 
-            return $this->toJsonEnc($user, 'Login successful', 200);
+            return $this->toJsonEnc($user, 'Login successful', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -149,7 +149,7 @@ class AuthController extends Controller
             $user = User::where('phone', $request->phone)->where('status', 'active')->first();
             
             if (!$user) {
-                return $this->toJsonEnc([], 'User not found', 404);
+                return $this->toJsonEnc([], 'User not found', Config::get('constant.NOT_FOUND'));
             }
 
             $user->update([
@@ -157,10 +157,10 @@ class AuthController extends Controller
                 'otp_expires_at' => $expiresAt
             ]);
 
-            return $this->toJsonEnc(['otp' => $otp], 'OTP sent successfully', 200);
+            return $this->toJsonEnc(['otp' => $otp], 'OTP sent successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -183,7 +183,7 @@ class AuthController extends Controller
                 ->first();
 
             if (!$user) {
-                return $this->toJsonEnc([], 'Invalid or expired OTP', 400);
+                return $this->toJsonEnc([], 'Invalid or expired OTP', Config::get('constant.ERROR'));
             }
 
             $user->update([
@@ -212,10 +212,10 @@ class AuthController extends Controller
 
             $user->token = $accessToken;
 
-            return $this->toJsonEnc($user, 'OTP verified successfully. You can now login.', 200);
+            return $this->toJsonEnc($user, 'OTP verified successfully. You can now login.', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -229,10 +229,10 @@ class AuthController extends Controller
                 'device_token' => ''
             ]);
 
-            return $this->toJsonEnc([], 'Logout successful', 200);
+            return $this->toJsonEnc([], 'Logout successful', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 

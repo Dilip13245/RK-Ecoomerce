@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Coupon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Config;
 
 class CouponController extends Controller
 {
@@ -26,14 +27,14 @@ class CouponController extends Controller
                 ->first();
 
             if (!$coupon) {
-                return $this->toJsonEnc([], 'Invalid coupon code', 400);
+                return $this->toJsonEnc([], 'Invalid coupon code', Config::get('constant.ERROR'));
             }
 
             if ($request->cart_amount < $coupon->min_amount) {
                 return $this->toJsonEnc(
                     ['min_amount' => $coupon->min_amount],
                     "Minimum cart amount should be ₹{$coupon->min_amount}",
-                    400
+                    Config::get('constant.ERROR')
                 );
             }
 
@@ -47,10 +48,10 @@ class CouponController extends Controller
                     'type' => $coupon->type,
                     'value' => $coupon->value,
                 ]
-            ], 'Coupon applied successfully', 200);
+            ], 'Coupon applied successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -61,10 +62,10 @@ class CouponController extends Controller
                 ->select('code', 'title', 'type', 'value', 'min_amount', 'max_discount', 'valid_until')
                 ->get();
 
-            return $this->toJsonEnc($coupons, 'Coupons retrieved successfully', 200);
+            return $this->toJsonEnc($coupons, 'Coupons retrieved successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 }

@@ -49,17 +49,18 @@ class OrderController extends Controller
                 return $this->toJsonEnc([], 'Cart is empty', Config::get('constant.ERROR'));
             }
 
-            // Validate stock availability
+            DB::beginTransaction();
+            
+            // Validate stock availability with lock (atomic check)
             foreach ($cartItems as $cartItem) {
                 if ($cartItem->product_color_id) {
-                    $color = ProductColor::find($cartItem->product_color_id);
+                    $color = ProductColor::lockForUpdate()->find($cartItem->product_color_id);
                     if (!$color || $color->stock < $cartItem->quantity) {
+                        DB::rollBack();
                         return $this->toJsonEnc([], 'Insufficient stock for ' . $cartItem->product->name, Config::get('constant.ERROR'));
                     }
                 }
             }
-
-            DB::beginTransaction();
 
             // Calculate totals
             $subtotal = $cartItems->sum(function ($item) {
@@ -121,12 +122,16 @@ class OrderController extends Controller
                     'item_status' => 'pending',
                 ]);
 
-                // Update stock
+                // Update stock atomically (already locked)
                 if ($cartItem->product_color_id) {
-                    $color = ProductColor::find($cartItem->product_color_id);
+                    $color = ProductColor::lockForUpdate()->find($cartItem->product_color_id);
                     if ($color) {
-                        $color->stock -= $cartItem->quantity;
-                        $color->save();
+                        // Double-check stock availability before deducting
+                        if ($color->stock < $cartItem->quantity) {
+                            DB::rollBack();
+                            return $this->toJsonEnc([], 'Insufficient stock for ' . $cartItem->product->name, Config::get('constant.ERROR'));
+                        }
+                        $color->decrement('stock', $cartItem->quantity);
                     }
                 }
             }

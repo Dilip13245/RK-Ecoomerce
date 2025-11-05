@@ -11,12 +11,24 @@ use App\Models\UserCart;
 use App\Helpers\FileHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Config;
 
 class ProductController extends Controller
 {
     public function create(Request $request)
     {
         try {
+            // Verify user is a seller
+            $user = \App\Models\User::find($request->user_id);
+            if (!$user || $user->user_type !== 'seller') {
+                return $this->toJsonEnc([], 'Only sellers can create products', \Illuminate\Support\Facades\Config::get('constant.ERROR'));
+            }
+
+            // Verify seller is active and verified
+            if ($user->status !== 'active' || !$user->is_verified) {
+                return $this->toJsonEnc([], 'Seller account must be active and verified', \Illuminate\Support\Facades\Config::get('constant.ERROR'));
+            }
+
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
                 'price' => 'required|numeric|min:0',
@@ -77,10 +89,10 @@ class ProductController extends Controller
                 return asset('storage/products/' . $image);
             }, $product->images);
 
-            return $this->toJsonEnc($product, 'Product created successfully', 200);
+            return $this->toJsonEnc($product, 'Product created successfully', \Illuminate\Support\Facades\Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), \Illuminate\Support\Facades\Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -112,7 +124,7 @@ class ProductController extends Controller
             $products = $query->orderBy('created_at', 'desc')->get();
 
             if ($products->isEmpty()) {
-                return $this->toJsonEnc([], 'No products found', 404);
+                return $this->toJsonEnc([], 'No products found', Config::get('constant.NOT_FOUND'));
             }
 
             // Get user's wishlist and cart items
@@ -150,10 +162,10 @@ class ProductController extends Controller
                 return $product;
             });
 
-            return $this->toJsonEnc($products, 'Products retrieved successfully', 200);
+            return $this->toJsonEnc($products, 'Products retrieved successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -173,7 +185,7 @@ class ProductController extends Controller
                 ->find($request->product_id);
 
             if (!$product) {
-                return $this->toJsonEnc([], 'Product not found', 404);
+                return $this->toJsonEnc([], 'Product not found', Config::get('constant.NOT_FOUND'));
             }
 
             // Format images with full URLs
@@ -211,10 +223,10 @@ class ProductController extends Controller
                 ];
             });
 
-            return $this->toJsonEnc($product, 'Product details retrieved successfully', 200);
+            return $this->toJsonEnc($product, 'Product details retrieved successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -237,10 +249,10 @@ class ProductController extends Controller
                 ['is_added' => true]
             );
 
-            return $this->toJsonEnc([], 'Product added to wishlist', 200);
+            return $this->toJsonEnc([], 'Product added to wishlist', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -259,10 +271,10 @@ class ProductController extends Controller
                 ->where('product_id', $request->product_id)
                 ->update(['is_added' => false]);
 
-            return $this->toJsonEnc([], 'Product removed from wishlist', 200);
+            return $this->toJsonEnc([], 'Product removed from wishlist', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -282,7 +294,7 @@ class ProductController extends Controller
             // Check product availability
             $product = Product::active()->find($request->product_id);
             if (!$product) {
-                return $this->toJsonEnc([], 'Product not available', 400);
+                return $this->toJsonEnc([], 'Product not available', Config::get('constant.ERROR'));
             }
 
             // Check color stock
@@ -291,7 +303,7 @@ class ProductController extends Controller
                 return $this->toJsonEnc(
                     ['available_stock' => $color->stock ?? 0],
                     'Insufficient stock',
-                    400
+                    Config::get('constant.ERROR')
                 );
             }
 
@@ -311,7 +323,7 @@ class ProductController extends Controller
                             'current_quantity' => $existingCart->quantity
                         ],
                         'Cannot exceed available stock',
-                        400
+                        Config::get('constant.ERROR')
                     );
                 }
 
@@ -325,16 +337,22 @@ class ProductController extends Controller
                 ]);
             }
 
-            return $this->toJsonEnc([], 'Product added to cart', 200);
+            return $this->toJsonEnc([], 'Product added to cart', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
     public function edit(Request $request)
     {
         try {
+            // Verify user is a seller
+            $user = \App\Models\User::find($request->user_id);
+            if (!$user || $user->user_type !== 'seller') {
+                return $this->toJsonEnc([], 'Only sellers can edit products', Config::get('constant.ERROR'));
+            }
+
             $validator = Validator::make($request->all(), [
                 'product_id' => 'required|exists:products,id',
                 'name' => 'required|string|max:255',
@@ -363,7 +381,7 @@ class ProductController extends Controller
                 ->first();
 
             if (!$product) {
-                return $this->toJsonEnc([], 'Product not found or unauthorized', 404);
+                return $this->toJsonEnc([], 'Product not found or unauthorized', Config::get('constant.NOT_FOUND'));
             }
 
             $updateData = [
@@ -411,10 +429,10 @@ class ProductController extends Controller
                 return asset('storage/products/' . $image);
             }, $product->images);
 
-            return $this->toJsonEnc($product, 'Product updated successfully', 200);
+            return $this->toJsonEnc($product, 'Product updated successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -426,7 +444,7 @@ class ProductController extends Controller
                 ->get();
 
             if ($cartItems->isEmpty()) {
-                return $this->toJsonEnc([], 'Cart is empty', 404);
+                return $this->toJsonEnc([], 'Cart is empty', Config::get('constant.NOT_FOUND'));
             }
 
             // Calculate totals
@@ -491,10 +509,10 @@ class ProductController extends Controller
                 'estimated_delivery' => now()->addDays(7)->format('d M Y')
             ];
 
-            return $this->toJsonEnc($cartData, 'Cart retrieved successfully', 200);
+            return $this->toJsonEnc($cartData, 'Cart retrieved successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -515,21 +533,21 @@ class ProductController extends Controller
                 ->first();
 
             if (!$cartItem) {
-                return $this->toJsonEnc([], 'Cart item not found', 404);
+                return $this->toJsonEnc([], 'Cart item not found', Config::get('constant.NOT_FOUND'));
             }
 
             // Check stock
             $color = ProductColor::find($cartItem->product_color_id);
             if ($color->stock < $request->quantity) {
-                return $this->toJsonEnc([], 'Insufficient stock', 400);
+                return $this->toJsonEnc([], 'Insufficient stock', Config::get('constant.ERROR'));
             }
 
             $cartItem->update(['quantity' => $request->quantity]);
 
-            return $this->toJsonEnc([], 'Cart quantity updated successfully', 200);
+            return $this->toJsonEnc([], 'Cart quantity updated successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -549,15 +567,15 @@ class ProductController extends Controller
                 ->first();
 
             if (!$cartItem) {
-                return $this->toJsonEnc([], 'Cart item not found', 404);
+                return $this->toJsonEnc([], 'Cart item not found', Config::get('constant.NOT_FOUND'));
             }
 
             $cartItem->delete();
 
-            return $this->toJsonEnc([], 'Product removed from cart', 200);
+            return $this->toJsonEnc([], 'Product removed from cart', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 
@@ -566,10 +584,10 @@ class ProductController extends Controller
         try {
             UserCart::where('user_id', $request->user_id)->delete();
 
-            return $this->toJsonEnc([], 'Cart cleared successfully', 200);
+            return $this->toJsonEnc([], 'Cart cleared successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
-            return $this->toJsonEnc([], $e->getMessage(), 500);
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
         }
     }
 }

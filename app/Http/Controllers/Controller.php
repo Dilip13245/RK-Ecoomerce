@@ -22,11 +22,21 @@ class Controller extends BaseController
      */
     public function toJsonEnc($result = [], $message = '', $status = 200)
     {
-        return response()->json([
-            'code' => $status,
-            'message' => $message,
-            'data' => !empty($result) ? $result : new \stdClass(),
-        ], $status);
+        if (Config::get('constant.ENCRYPTION_ENABLED') == 1) {
+            // If encryption is enabled, use EncryptDecrypt helper
+            // For now, we'll keep it simple without encryption
+            return response()->json([
+                'code' => $status,
+                'message' => $message,
+                'data' => !empty($result) ? $result : new \stdClass(),
+            ], $status);
+        } else {
+            return response()->json([
+                'code' => $status,
+                'message' => $message,
+                'data' => !empty($result) ? $result : new \stdClass(),
+            ], $status);
+        }
     }
 
     public function validateResponse($errors, $result = [])
@@ -38,10 +48,20 @@ class Controller extends BaseController
             break;
         }
         
-        return response()->json([
-            'code' => 422,
-            'message' => $err,
-            'data' => !empty($result) ? $result : new \stdClass(),
-        ], 422);
+        if (Config::get('constant.ENCRYPTION_ENABLED') == 1) {
+            // If encryption is enabled, use EncryptDecrypt helper
+            // For now, we'll keep it simple without encryption
+            return response()->json([
+                'code' => Config::get('constant.VALIDATION_ERROR'),
+                'message' => $err,
+                'data' => !empty($result) ? $result : new \stdClass(),
+            ], Config::get('constant.VALIDATION_ERROR'));
+        } else {
+            return response()->json([
+                'code' => Config::get('constant.VALIDATION_ERROR'),
+                'message' => $err,
+                'data' => !empty($result) ? $result : new \stdClass(),
+            ], Config::get('constant.VALIDATION_ERROR'));
+        }
     }
 }
