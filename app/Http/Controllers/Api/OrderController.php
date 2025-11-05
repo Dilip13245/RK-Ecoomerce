@@ -33,7 +33,7 @@ class OrderController extends Controller
             // Verify address belongs to user
             $address = UserAddress::where('id', $request->address_id)
                 ->where('user_id', $request->user_id)
-                ->where('is_active', 1)
+                ->where('is_active', true)
                 ->first();
 
             if (!$address) {
@@ -115,7 +115,7 @@ class OrderController extends Controller
                     'product_color_id' => $cartItem->product_color_id,
                     'product_title' => $cartItem->product->name,
                     'color_name' => $cartItem->productColor->color_name ?? null,
-                    'color_code' => $cartItem->productColor->color_code ?? null,
+                    'color_value' => $cartItem->productColor->color_code ?? null,
                     'quantity' => $cartItem->quantity,
                     'unit_price' => $unitPrice,
                     'total_price' => $unitPrice * $cartItem->quantity,
@@ -139,11 +139,6 @@ class OrderController extends Controller
             // Clear cart
             UserCart::where('user_id', $request->user_id)->delete();
 
-            // Update coupon usage if applied
-            if ($coupon) {
-                $coupon->increment('used');
-            }
-
             DB::commit();
 
             return $this->getOrderDetails($request, $order->id);
@@ -165,7 +160,7 @@ class OrderController extends Controller
                 'address'
             ])->where('id', $orderId)
                 ->where('user_id', $request->user_id)
-                ->where('is_deleted', 0)
+                ->where('is_deleted', false)
                 ->first();
 
             if (!$order) {
@@ -191,7 +186,7 @@ class OrderController extends Controller
                     'product_id' => $item->product_id,
                     'product_title' => $item->product_title,
                     'color_name' => $item->color_name,
-                    'color_code' => $item->color_code,
+                    'color_code' => $item->color_value,
                     'quantity' => $item->quantity,
                     'unit_price' => $item->unit_price,
                     'total_price' => $item->total_price,
@@ -221,14 +216,13 @@ class OrderController extends Controller
                 ],
 
                 // Address details
-                'shipping_address' => [
-                    'name' => $order->address->name,
-                    'phone' => $order->address->phone,
-                    'address' => $order->address->address,
-                    'city' => $order->address->city,
+                'shipping_address' => $order->address ? [
+                    'name' => $order->address->full_name,
+                    'block_number' => $order->address->block_number,
+                    'building_name' => $order->address->building_name,
+                    'area_street' => $order->address->area_street,
                     'state' => $order->address->state,
-                    'pincode' => $order->address->pincode,
-                ],
+                ] : null,
 
                 // Order items
                 'order_items' => $orderItemsArray,
@@ -245,7 +239,7 @@ class OrderController extends Controller
         try {
             $orders = Order::with(['orderItems.product', 'orderItems.seller'])
                 ->where('user_id', $request->user_id)
-                ->where('is_deleted', 0)
+                ->where('is_deleted', false)
                 ->orderBy('created_at', 'desc')
                 ->get();
 
@@ -300,31 +294,23 @@ class OrderController extends Controller
 
     private function applyCoupon($couponCode, $subtotal)
     {
-        $coupon = Coupon::where('code', $couponCode)
-            ->where('is_active', 1)
-            ->where('start_date', '<=', now())
-            ->where('end_date', '>=', now())
+        $coupon = Coupon::active()
+            ->where('code', $couponCode)
             ->first();
 
         if (!$coupon) {
-            return ['success' => false, 'message' => 'Invalid coupon code'];
+            return ['success' => false, 'message' => 'Invalid or expired coupon code'];
         }
 
-        if ($coupon->usage_limit && $coupon->used >= $coupon->usage_limit) {
-            return ['success' => false, 'message' => 'Coupon usage limit reached'];
+        if ($subtotal < $coupon->min_amount) {
+            return [
+                'success' => false,
+                'message' => "Minimum order amount of ₹{$coupon->min_amount} required"
+            ];
         }
 
-        if ($coupon->minimum_amount && $subtotal < $coupon->minimum_amount) {
-            return ['success' => false, 'message' => 'Minimum order amount not met'];
-        }
-
-        $discount = $coupon->type === 'percentage'
-            ? ($subtotal * $coupon->value) / 100
-            : min($coupon->value, $subtotal);
-
-        if ($coupon->maximum_discount && $discount > $coupon->maximum_discount) {
-            $discount = $coupon->maximum_discount;
-        }
+        // Use the calculateDiscount method from Coupon model
+        $discount = $coupon->calculateDiscount($subtotal);
 
         return [
             'success' => true,
