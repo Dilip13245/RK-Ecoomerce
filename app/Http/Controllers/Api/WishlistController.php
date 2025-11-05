@@ -8,10 +8,23 @@ use App\Models\UserWishlist;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Config;
+
+class WishlistController extends Controller
+{
+    public function getWishlist(Request $request)
+    {
+        try {
+            $wishlistItems = UserWishlist::where('user_id', $request->user_id)
+                ->where('is_added', true)
+                ->pluck('product_id')
+                ->toArray();
+
+            if (empty($wishlistItems)) {
+                return $this->toJsonEnc([], 'Wishlist is empty', Config::get('constant.NOT_FOUND'));
             }
 
             $products = Product::with(['colors', 'category', 'subcategory'])
-                ->whereIn('id', $productIds)
+                ->whereIn('id', $wishlistItems)
                 ->active()
                 ->get();
 

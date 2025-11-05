@@ -7,6 +7,27 @@ use App\Models\Coupon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Config;
+
+class CouponController extends Controller
+{
+    public function validateCoupon(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'coupon_code' => 'required|string',
+                'cart_amount' => 'required|numeric|min:0',
+            ]);
+
+            if ($validator->fails()) {
+                return $this->validateResponse($validator->errors());
+            }
+
+            $coupon = Coupon::active()
+                ->where('code', $request->coupon_code)
+                ->first();
+
+            if (!$coupon) {
+                return $this->toJsonEnc([], 'Invalid or expired coupon code', Config::get('constant.ERROR'));
             }
 
             if ($request->cart_amount < $coupon->min_amount) {
