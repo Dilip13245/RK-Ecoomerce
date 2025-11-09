@@ -20,14 +20,40 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         try {
-            $existingUser = User::where('phone', $request->phone)
+            $existingUser = User::where('email', $request->email)
                 ->where('user_type', $request->user_type)
                 ->first();
+
+            if ($existingUser) {
+                if ($existingUser->user_type === 'customer') {
+                    if ($existingUser->step_no == 0 && $existingUser->is_verified) {
+                        return $this->toJsonEnc([], 'User already registered. Please login to continue.', Config::get('constant.ERROR'));
+                    }
+                    
+                    if ($existingUser->step_no == 1 && !$existingUser->is_verified) {
+                        UserDevice::where('user_id', $existingUser->id)->delete();
+                        $existingUser->delete();
+                        $existingUser = null;
+                    }
+                }
+                
+                if ($existingUser && $existingUser->user_type === 'seller') {
+                    if ($existingUser->step_no >= 2) {
+                        return $this->toJsonEnc([], 'User already registered. Please login to continue.', Config::get('constant.ERROR'));
+                    }
+                    
+                    if ($existingUser->step_no == 1) {
+                        UserDevice::where('user_id', $existingUser->id)->delete();
+                        $existingUser->delete();
+                        $existingUser = null;
+                    }
+                }
+            }
 
             $rules = [
                 'name' => 'required|string|max:255',
                 'email' => 'required|email',
-                'phone' => 'required|string',
+                'phone' => 'nullable|string',
                 'password' => 'required|string|min:6',
                 'user_type' => 'required|in:customer,seller',
                 'profile_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
@@ -35,33 +61,35 @@ class AuthController extends Controller
             ];
 
             if ($existingUser) {
-                if (($existingUser->user_type === 'seller' && $existingUser->step_no >= 2) ||
-                    ($existingUser->user_type === 'customer' && $existingUser->is_verified)) {
-                    return $this->toJsonEnc([], 'User already registered. Please login to continue.', Config::get('constant.ERROR'));
-                }
-                
-                if ($existingUser->step_no == 1) {
-                    $rules['email'] = 'required|email|unique:users,email,' . $existingUser->id;
-                    $rules['phone'] = 'required|string|unique:users,phone,' . $existingUser->id;
-                } else {
-                    $rules['email'] = 'required|email|unique:users,email,' . $existingUser->id;
-                    $rules['phone'] = 'required|string|unique:users,phone,' . $existingUser->id;
+                $rules['email'] = 'required|email|unique:users,email,' . $existingUser->id;
+                if ($request->phone) {
+                    $rules['phone'] = 'nullable|string|unique:users,phone,' . $existingUser->id;
                 }
             } else {
                 $rules['email'] = 'required|email|unique:users,email';
-                $rules['phone'] = 'required|string|unique:users,phone';
+                if ($request->phone) {
+                    $rules['phone'] = 'nullable|string|unique:users,phone';
+                }
             }
 
             $validator = Validator::make($request->all(), $rules);
 
             if ($validator->fails()) {
-                return $this->validateResponse($validator->errors());
-            }
-
-            if ($existingUser && $existingUser->step_no == 1) {
-                UserDevice::where('user_id', $existingUser->id)->delete();
-                $existingUser->delete();
-                $existingUser = null;
+                $errors = $validator->errors();
+                
+                if ($errors->has('email')) {
+                    $checkUser = User::where('email', $request->email)->where('user_type', $request->user_type)->first();
+                    if ($checkUser) {
+                        if ($checkUser->user_type === 'customer' && $checkUser->is_verified && $checkUser->step_no == 0) {
+                            return $this->toJsonEnc([], 'User already registered. Please login to continue.', Config::get('constant.ERROR'));
+                        }
+                        if ($checkUser->user_type === 'seller' && $checkUser->step_no >= 2) {
+                            return $this->toJsonEnc([], 'User already registered. Please login to continue.', Config::get('constant.ERROR'));
+                        }
+                    }
+                }
+                
+                return $this->validateResponse($errors);
             }
 
             $profileImage = null;
@@ -72,29 +100,22 @@ class AuthController extends Controller
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
-                'phone' => $request->phone,
+                'phone' => $request->phone ?? null,
                 'profile_image' => $profileImage,
                 'password' => Hash::make($request->password),
                 'user_type' => $request->user_type,
                 'status' => $request->user_type === 'seller' ? 'inactive' : 'active',
                 'is_verified' => false,
-                'step_no' => $request->user_type === 'seller' ? 1 : 0,
+                'step_no' => 1,
             ]);
 
-            if ($request->user_type === 'seller') {
-                $otp = '1234';
-                $expiresAt = now()->addMinutes(5);
+            $otp = '1234';
+            $expiresAt = now()->addMinutes(5);
 
-                $user->update([
-                    'otp' => $otp,
-                    'otp_expires_at' => $expiresAt
-                ]);
-            } else {
-                $user->update([
-                    'is_verified' => true,
-                    'step_no' => 0
-                ]);
-            }
+            $user->update([
+                'otp' => $otp,
+                'otp_expires_at' => $expiresAt
+            ]);
 
             $accessToken = Str::random(64);
 
@@ -117,14 +138,9 @@ class AuthController extends Controller
             return $this->toJsonEnc([
                 'user' => $user,
                 'step_no' => $user->step_no,
-                'otp' => $request->user_type === 'seller' ? $otp : null,
-                'message' => $request->user_type === 'seller' 
-                    ? 'Step 1 completed. OTP sent to your phone number. Please verify to continue.' 
-                    : 'Registration successful.'
-            ], $request->user_type === 'seller' 
-                ? 'Step 1 completed. OTP sent to your phone number.' 
-                : 'Registration successful.', 
-            Config::get('constant.SUCCESS'));
+                'otp' => $otp,
+                'message' => 'OTP sent to your email. Please verify to continue.'
+            ], 'OTP sent to your email.', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
             return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
@@ -152,6 +168,33 @@ class AuthController extends Controller
                 return $this->toJsonEnc([], 'Invalid credentials', Config::get('constant.UNAUTHORIZED'));
             }
 
+            if ($user->user_type === 'customer' && $user->step_no == 1 && !$user->is_verified) {
+                $accessToken = Str::random(64);
+
+                UserDevice::updateOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'token' => $accessToken,
+                        'device_type' => $request->device_type,
+                        'ip_address' => $request->ip(),
+                        'uuid' => $request->uuid ?? '',
+                        'os_version' => $request->os_version ?? '',
+                        'device_model' => $request->device_model ?? '',
+                        'app_version' => $request->app_version ?? 'v1',
+                        'device_token' => $request->device_token ?? '',
+                    ]
+                );
+
+                $user->token = $accessToken;
+                
+                return $this->toJsonEnc([
+                    'user' => $user,
+                    'step_no' => $user->step_no,
+                    'registration_incomplete' => true,
+                    'message' => 'Please verify your email OTP to complete registration.'
+                ], 'Login successful. Please verify OTP to complete registration.', Config::get('constant.SUCCESS'));
+            }
+
             if ($user->user_type === 'seller' && $user->step_no < 4) {
                 $accessToken = Str::random(64);
 
@@ -175,7 +218,7 @@ class AuthController extends Controller
                     'user' => $user,
                     'step_no' => $user->step_no,
                     'registration_incomplete' => true,
-                    'message' => 'Please complete your registration. Current step: ' . $user->step_no
+                    'message' => 'Please complete your registration.'
                 ], 'Login successful. Please complete registration.', Config::get('constant.SUCCESS'));
             }
 
@@ -212,7 +255,7 @@ class AuthController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'phone' => 'required|string',
+                'email' => 'required|email',
                 'type' => 'required|in:register,forgot',
             ]);
 
@@ -224,9 +267,9 @@ class AuthController extends Controller
             $expiresAt = now()->addMinutes(5);
 
             if ($request->type === 'register') {
-                $user = User::where('phone', $request->phone)->first();
+                $user = User::where('email', $request->email)->first();
             } else {
-                $user = User::where('phone', $request->phone)->where('status', 'active')->first();
+                $user = User::where('email', $request->email)->where('status', 'active')->first();
             }
             
             if (!$user) {
@@ -238,7 +281,7 @@ class AuthController extends Controller
                 'otp_expires_at' => $expiresAt
             ]);
 
-            return $this->toJsonEnc(['otp' => $otp], 'OTP sent successfully', Config::get('constant.SUCCESS'));
+            return $this->toJsonEnc(['otp' => $otp], 'OTP sent successfully to your email', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
             return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
@@ -249,7 +292,7 @@ class AuthController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'phone' => 'required|string',
+                'email' => 'required|email',
                 'otp' => 'required|string',
                 'device_type' => 'required|in:A,I',
             ]);
@@ -258,7 +301,7 @@ class AuthController extends Controller
                 return $this->validateResponse($validator->errors());
             }
 
-            $user = User::where('phone', $request->phone)
+            $user = User::where('email', $request->email)
                 ->where('otp', $request->otp)
                 ->where('otp_expires_at', '>', now())
                 ->first();
@@ -269,7 +312,7 @@ class AuthController extends Controller
 
             if ($user->user_type === 'seller' && $user->step_no == 1) {
                 $user->update([
-                    'phone_verified_at' => now(),
+                    'email_verified_at' => now(),
                     'otp' => null,
                     'otp_expires_at' => null,
                     'step_no' => 2,
@@ -299,9 +342,37 @@ class AuthController extends Controller
                     'step_no' => $user->step_no,
                     'message' => 'OTP verified. Please upload your government ID.'
                 ], 'OTP verified successfully. Please upload your government ID.', Config::get('constant.SUCCESS'));
+            } else if ($user->user_type === 'customer' && $user->step_no == 1) {
+                $user->update([
+                    'email_verified_at' => now(),
+                    'is_verified' => true,
+                    'otp' => null,
+                    'otp_expires_at' => null,
+                    'step_no' => 0
+                ]);
+
+                $accessToken = Str::random(64);
+
+                UserDevice::updateOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'token' => $accessToken,
+                        'device_type' => $request->device_type,
+                        'ip_address' => $request->ip(),
+                        'uuid' => $request->uuid ?? '',
+                        'os_version' => $request->os_version ?? '',
+                        'device_model' => $request->device_model ?? '',
+                        'app_version' => $request->app_version ?? 'v1',
+                        'device_token' => $request->device_token ?? '',
+                    ]
+                );
+
+                $user->token = $accessToken;
+
+                return $this->toJsonEnc($user, 'OTP verified successfully. Registration completed.', Config::get('constant.SUCCESS'));
             } else {
                 $user->update([
-                    'phone_verified_at' => now(),
+                    'email_verified_at' => now(),
                     'is_verified' => true,
                     'otp' => null,
                     'otp_expires_at' => null
@@ -337,7 +408,7 @@ class AuthController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'phone' => 'required|string',
+                'email' => 'required|email',
                 'otp' => 'required|string',
                 'new_password' => 'required|string|min:6',
             ]);
@@ -346,7 +417,7 @@ class AuthController extends Controller
                 return $this->validateResponse($validator->errors());
             }
 
-            $user = User::where('phone', $request->phone)
+            $user = User::where('email', $request->email)
                 ->where('otp', $request->otp)
                 ->where('otp_expires_at', '>', now())
                 ->first();
