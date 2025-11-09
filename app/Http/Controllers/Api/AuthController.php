@@ -20,21 +20,36 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         try {
+            $existingUser = User::where('phone', $request->phone)
+                ->where('user_type', $request->user_type)
+                ->first();
+
             $rules = [
                 'name' => 'required|string|max:255',
-                'email' => 'required|email|unique:users,email',
-                'phone' => 'required|string|unique:users,phone',
+                'email' => 'required|email',
+                'phone' => 'required|string',
                 'password' => 'required|string|min:6',
                 'user_type' => 'required|in:customer,seller',
                 'profile_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+                'device_type' => 'required|in:A,I',
             ];
 
-            // Add seller-specific validation
-            if ($request->user_type === 'seller') {
-                $rules['government_id'] = 'required|image|mimes:jpeg,png,jpg|max:2048';
-                $rules['account_holder_name'] = 'required|string|max:255';
-                $rules['account_number'] = 'required|string|max:20';
-                $rules['ifsc_code'] = 'required|string|max:11';
+            if ($existingUser) {
+                if (($existingUser->user_type === 'seller' && $existingUser->step_no >= 2) ||
+                    ($existingUser->user_type === 'customer' && $existingUser->is_verified)) {
+                    return $this->toJsonEnc([], 'User already registered. Please login to continue.', Config::get('constant.ERROR'));
+                }
+                
+                if ($existingUser->step_no == 1) {
+                    $rules['email'] = 'required|email|unique:users,email,' . $existingUser->id;
+                    $rules['phone'] = 'required|string|unique:users,phone,' . $existingUser->id;
+                } else {
+                    $rules['email'] = 'required|email|unique:users,email,' . $existingUser->id;
+                    $rules['phone'] = 'required|string|unique:users,phone,' . $existingUser->id;
+                }
+            } else {
+                $rules['email'] = 'required|email|unique:users,email';
+                $rules['phone'] = 'required|string|unique:users,phone';
             }
 
             $validator = Validator::make($request->all(), $rules);
@@ -43,16 +58,15 @@ class AuthController extends Controller
                 return $this->validateResponse($validator->errors());
             }
 
-            // Handle file uploads
-            $profileImage = null;
-            $governmentId = null;
-
-            if ($request->hasFile('profile_image')) {
-                $profileImage = FileHelper::uploadImage($request->file('profile_image'), 'profile');
+            if ($existingUser && $existingUser->step_no == 1) {
+                UserDevice::where('user_id', $existingUser->id)->delete();
+                $existingUser->delete();
+                $existingUser = null;
             }
 
-            if ($request->hasFile('government_id')) {
-                $governmentId = FileHelper::uploadImage($request->file('government_id'), 'documents');
+            $profileImage = null;
+            if ($request->hasFile('profile_image')) {
+                $profileImage = FileHelper::uploadImage($request->file('profile_image'), 'profile');
             }
 
             $user = User::create([
@@ -60,24 +74,57 @@ class AuthController extends Controller
                 'email' => $request->email,
                 'phone' => $request->phone,
                 'profile_image' => $profileImage,
-                'government_id' => $governmentId,
                 'password' => Hash::make($request->password),
                 'user_type' => $request->user_type,
-                'status' => 'active',
+                'status' => $request->user_type === 'seller' ? 'inactive' : 'active',
                 'is_verified' => false,
+                'step_no' => $request->user_type === 'seller' ? 1 : 0,
             ]);
 
-            // Create bank details for seller
             if ($request->user_type === 'seller') {
-                BankDetail::create([
-                    'user_id' => $user->id,
-                    'account_holder_name' => $request->account_holder_name,
-                    'account_number' => $request->account_number,
-                    'ifsc_code' => $request->ifsc_code,
+                $otp = '1234';
+                $expiresAt = now()->addMinutes(5);
+
+                $user->update([
+                    'otp' => $otp,
+                    'otp_expires_at' => $expiresAt
+                ]);
+            } else {
+                $user->update([
+                    'is_verified' => true,
+                    'step_no' => 0
                 ]);
             }
 
-            return $this->toJsonEnc($user, 'Registration successful. Please verify your phone number.', Config::get('constant.SUCCESS'));
+            $accessToken = Str::random(64);
+
+            UserDevice::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'token' => $accessToken,
+                    'device_type' => $request->device_type,
+                    'ip_address' => $request->ip(),
+                    'uuid' => $request->uuid ?? '',
+                    'os_version' => $request->os_version ?? '',
+                    'device_model' => $request->device_model ?? '',
+                    'app_version' => $request->app_version ?? 'v1',
+                    'device_token' => $request->device_token ?? '',
+                ]
+            );
+
+            $user->token = $accessToken;
+
+            return $this->toJsonEnc([
+                'user' => $user,
+                'step_no' => $user->step_no,
+                'otp' => $request->user_type === 'seller' ? $otp : null,
+                'message' => $request->user_type === 'seller' 
+                    ? 'Step 1 completed. OTP sent to your phone number. Please verify to continue.' 
+                    : 'Registration successful.'
+            ], $request->user_type === 'seller' 
+                ? 'Step 1 completed. OTP sent to your phone number.' 
+                : 'Registration successful.', 
+            Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
             return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
@@ -98,12 +145,42 @@ class AuthController extends Controller
             }
 
             $user = User::where('email', $request->email)
-                ->where('status', 'active')
-                ->where('is_verified', true)
+                ->where('status', '!=', 'suspended')
                 ->first();
 
             if (!$user || !Hash::check($request->password, $user->password)) {
-                return $this->toJsonEnc([], 'Invalid credentials or account not verified', Config::get('constant.UNAUTHORIZED'));
+                return $this->toJsonEnc([], 'Invalid credentials', Config::get('constant.UNAUTHORIZED'));
+            }
+
+            if ($user->user_type === 'seller' && $user->step_no < 4) {
+                $accessToken = Str::random(64);
+
+                UserDevice::updateOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'token' => $accessToken,
+                        'device_type' => $request->device_type,
+                        'ip_address' => $request->ip(),
+                        'uuid' => $request->uuid ?? '',
+                        'os_version' => $request->os_version ?? '',
+                        'device_model' => $request->device_model ?? '',
+                        'app_version' => $request->app_version ?? 'v1',
+                        'device_token' => $request->device_token ?? '',
+                    ]
+                );
+
+                $user->token = $accessToken;
+                
+                return $this->toJsonEnc([
+                    'user' => $user,
+                    'step_no' => $user->step_no,
+                    'registration_incomplete' => true,
+                    'message' => 'Please complete your registration. Current step: ' . $user->step_no
+                ], 'Login successful. Please complete registration.', Config::get('constant.SUCCESS'));
+            }
+
+            if (!$user->is_verified) {
+                return $this->toJsonEnc([], 'Account not verified. Please verify your account.', Config::get('constant.UNAUTHORIZED'));
             }
 
             $accessToken = Str::random(64);
@@ -143,10 +220,14 @@ class AuthController extends Controller
                 return $this->validateResponse($validator->errors());
             }
 
-            $otp = rand(1000, 9999);
+            $otp = '1234';
             $expiresAt = now()->addMinutes(5);
 
-            $user = User::where('phone', $request->phone)->where('status', 'active')->first();
+            if ($request->type === 'register') {
+                $user = User::where('phone', $request->phone)->first();
+            } else {
+                $user = User::where('phone', $request->phone)->where('status', 'active')->first();
+            }
             
             if (!$user) {
                 return $this->toJsonEnc([], 'User not found', Config::get('constant.NOT_FOUND'));
@@ -186,33 +267,184 @@ class AuthController extends Controller
                 return $this->toJsonEnc([], 'Invalid or expired OTP', Config::get('constant.ERROR'));
             }
 
+            if ($user->user_type === 'seller' && $user->step_no == 1) {
+                $user->update([
+                    'phone_verified_at' => now(),
+                    'otp' => null,
+                    'otp_expires_at' => null,
+                    'step_no' => 2,
+                    'is_verified' => false
+                ]);
+
+                $accessToken = Str::random(64);
+
+                UserDevice::updateOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'token' => $accessToken,
+                        'device_type' => $request->device_type,
+                        'ip_address' => $request->ip(),
+                        'uuid' => $request->uuid ?? '',
+                        'os_version' => $request->os_version ?? '',
+                        'device_model' => $request->device_model ?? '',
+                        'app_version' => $request->app_version ?? 'v1',
+                        'device_token' => $request->device_token ?? '',
+                    ]
+                );
+
+                $user->token = $accessToken;
+
+                return $this->toJsonEnc([
+                    'user' => $user,
+                    'step_no' => $user->step_no,
+                    'message' => 'OTP verified. Please upload your government ID.'
+                ], 'OTP verified successfully. Please upload your government ID.', Config::get('constant.SUCCESS'));
+            } else {
+                $user->update([
+                    'phone_verified_at' => now(),
+                    'is_verified' => true,
+                    'otp' => null,
+                    'otp_expires_at' => null
+                ]);
+
+                $accessToken = Str::random(64);
+
+                UserDevice::updateOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'token' => $accessToken,
+                        'device_type' => $request->device_type,
+                        'ip_address' => $request->ip(),
+                        'uuid' => $request->uuid ?? '',
+                        'os_version' => $request->os_version ?? '',
+                        'device_model' => $request->device_model ?? '',
+                        'app_version' => $request->app_version ?? 'v1',
+                        'device_token' => $request->device_token ?? '',
+                    ]
+                );
+
+                $user->token = $accessToken;
+
+                return $this->toJsonEnc($user, 'OTP verified successfully. You can now login.', Config::get('constant.SUCCESS'));
+            }
+
+        } catch (\Exception $e) {
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
+        }
+    }
+
+    public function resetPassword(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'phone' => 'required|string',
+                'otp' => 'required|string',
+                'new_password' => 'required|string|min:6',
+            ]);
+
+            if ($validator->fails()) {
+                return $this->validateResponse($validator->errors());
+            }
+
+            $user = User::where('phone', $request->phone)
+                ->where('otp', $request->otp)
+                ->where('otp_expires_at', '>', now())
+                ->first();
+
+            if (!$user) {
+                return $this->toJsonEnc([], 'Invalid or expired OTP', Config::get('constant.ERROR'));
+            }
+
             $user->update([
-                'phone_verified_at' => now(),
-                'is_verified' => true,
+                'password' => Hash::make($request->new_password),
                 'otp' => null,
                 'otp_expires_at' => null
             ]);
 
-            // Generate token after verification
-            $accessToken = Str::random(64);
+            return $this->toJsonEnc([], 'Password reset successfully. You can now login with your new password.', Config::get('constant.SUCCESS'));
 
-            UserDevice::updateOrCreate(
-                ['user_id' => $user->id],
-                [
-                    'token' => $accessToken,
-                    'device_type' => $request->device_type,
-                    'ip_address' => $request->ip(),
-                    'uuid' => $request->uuid ?? '',
-                    'os_version' => $request->os_version ?? '',
-                    'device_model' => $request->device_model ?? '',
-                    'app_version' => $request->app_version ?? 'v1',
-                    'device_token' => $request->device_token ?? '',
-                ]
-            );
+        } catch (\Exception $e) {
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
+        }
+    }
 
-            $user->token = $accessToken;
+    public function completeStep(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'user_id' => 'required|exists:users,id',
+            ]);
 
-            return $this->toJsonEnc($user, 'OTP verified successfully. You can now login.', Config::get('constant.SUCCESS'));
+            if ($validator->fails()) {
+                return $this->validateResponse($validator->errors());
+            }
+
+            $user = User::where('id', $request->user_id)
+                ->where('user_type', 'seller')
+                ->where('status', '!=', 'suspended')
+                ->first();
+
+            if (!$user) {
+                return $this->toJsonEnc([], 'User not found or inactive', Config::get('constant.NOT_FOUND'));
+            }
+
+            if ($user->step_no == 2) {
+                $validator = Validator::make($request->all(), [
+                    'government_id' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+                ]);
+
+                if ($validator->fails()) {
+                    return $this->validateResponse($validator->errors());
+                }
+
+                $governmentId = FileHelper::uploadImage($request->file('government_id'), 'documents');
+
+                $user->update([
+                    'government_id' => $governmentId,
+                    'step_no' => 3
+                ]);
+
+                return $this->toJsonEnc([
+                    'user_id' => $user->id,
+                    'step_no' => $user->step_no,
+                    'message' => 'Government ID uploaded. Please add your bank details.'
+                ], 'Government ID uploaded successfully. Please add your bank details.', Config::get('constant.SUCCESS'));
+
+            } elseif ($user->step_no == 3) {
+                $validator = Validator::make($request->all(), [
+                    'account_holder_name' => 'required|string|max:255',
+                    'account_number' => 'required|string|max:20',
+                    'ifsc_code' => 'required|string|max:11',
+                ]);
+
+                if ($validator->fails()) {
+                    return $this->validateResponse($validator->errors());
+                }
+
+                BankDetail::create([
+                    'user_id' => $user->id,
+                    'account_holder_name' => $request->account_holder_name,
+                    'account_number' => $request->account_number,
+                    'ifsc_code' => $request->ifsc_code,
+                    'is_active' => true,
+                    'is_deleted' => false,
+                ]);
+
+                $user->update([
+                    'step_no' => 4,
+                    'status' => 'active',
+                    'is_verified' => true,
+                ]);
+
+                return $this->toJsonEnc([
+                    'user' => $user,
+                    'step_no' => $user->step_no,
+                    'message' => 'Registration completed successfully!'
+                ], 'Registration completed successfully!', Config::get('constant.SUCCESS'));
+
+            } else {
+                return $this->toJsonEnc([], 'Invalid step. Please complete previous steps.', Config::get('constant.ERROR'));
+            }
 
         } catch (\Exception $e) {
             return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));

@@ -27,6 +27,7 @@ class User extends Authenticatable implements FilamentUser
         'is_verified',
         'otp',
         'otp_expires_at',
+        'step_no',
     ];
 
     /**

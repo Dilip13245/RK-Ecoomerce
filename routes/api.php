@@ -24,6 +24,8 @@ Route::prefix('auth')->group(function () {
     Route::post('/login', [\App\Http\Controllers\Api\AuthController::class, 'login']);
     Route::post('/send-otp', [\App\Http\Controllers\Api\AuthController::class, 'sendOtp']);
     Route::post('/verify-otp', [\App\Http\Controllers\Api\AuthController::class, 'verifyOtp']);
+    Route::post('/reset-password', [\App\Http\Controllers\Api\AuthController::class, 'resetPassword']);
+    Route::post('/complete-step', [\App\Http\Controllers\Api\AuthController::class, 'completeStep'])->middleware(['tokencheck']);
     Route::post('/logout', [\App\Http\Controllers\Api\AuthController::class, 'logout']);
 });
 
