@@ -24,9 +24,17 @@ class ProductController extends Controller
                 return $this->toJsonEnc([], 'Only sellers can create products', Config::get('constant.ERROR'));
             }
 
-            // Verify seller is active and verified
-            if ($user->status !== 'active' || !$user->is_verified) {
-                return $this->toJsonEnc([], 'Seller account must be active and verified', Config::get('constant.ERROR'));
+            // Verify seller is active
+            if ($user->status !== 'active') {
+                return $this->toJsonEnc([], 'Seller account must be active', Config::get('constant.ERROR'));
+            }
+
+            // Verify seller is verified by admin
+            if (!$user->is_verified) {
+                if ($user->step_no == 4) {
+                    return $this->toJsonEnc([], 'Admin is looking into your profile and shortly let you in. Please wait for admin verification to create products.', Config::get('constant.ERROR'));
+                }
+                return $this->toJsonEnc([], 'Seller account must be verified by admin. Please complete your registration.', Config::get('constant.ERROR'));
             }
 
             $validator = Validator::make($request->all(), [
@@ -353,9 +361,17 @@ class ProductController extends Controller
                 return $this->toJsonEnc([], 'Only sellers can edit products', Config::get('constant.ERROR'));
             }
 
-            // Verify seller is active and verified
-            if ($user->status !== 'active' || !$user->is_verified) {
-                return $this->toJsonEnc([], 'Seller account must be active and verified', Config::get('constant.ERROR'));
+            // Verify seller is active
+            if ($user->status !== 'active') {
+                return $this->toJsonEnc([], 'Seller account must be active', Config::get('constant.ERROR'));
+            }
+
+            // Verify seller is verified by admin
+            if (!$user->is_verified) {
+                if ($user->step_no == 4) {
+                    return $this->toJsonEnc([], 'Admin is looking into your profile and shortly let you in. Please wait for admin verification to edit products.', Config::get('constant.ERROR'));
+                }
+                return $this->toJsonEnc([], 'Seller account must be verified by admin. Please complete your registration.', Config::get('constant.ERROR'));
             }
 
             $validator = Validator::make($request->all(), [

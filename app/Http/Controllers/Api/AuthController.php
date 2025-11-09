@@ -222,7 +222,37 @@ class AuthController extends Controller
                 ], 'Login successful. Please complete registration.', Config::get('constant.SUCCESS'));
             }
 
-            if (!$user->is_verified) {
+            // Seller with step_no = 4 but not verified by admin
+            if ($user->user_type === 'seller' && $user->step_no == 4 && !$user->is_verified) {
+                $accessToken = Str::random(64);
+
+                UserDevice::updateOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'token' => $accessToken,
+                        'device_type' => $request->device_type,
+                        'ip_address' => $request->ip(),
+                        'uuid' => $request->uuid ?? '',
+                        'os_version' => $request->os_version ?? '',
+                        'device_model' => $request->device_model ?? '',
+                        'app_version' => $request->app_version ?? 'v1',
+                        'device_token' => $request->device_token ?? '',
+                    ]
+                );
+
+                $user->token = $accessToken;
+                
+                return $this->toJsonEnc([
+                    'user' => $user,
+                    'step_no' => $user->step_no,
+                    'is_verified' => false,
+                    'admin_verification_pending' => true,
+                    'message' => 'Admin is looking into your profile and shortly let you in.'
+                ], 'Admin is reviewing your profile. You will be notified once approved.', Config::get('constant.SUCCESS'));
+            }
+
+            // Customer or verified seller - normal login
+            if ($user->user_type === 'customer' && !$user->is_verified) {
                 return $this->toJsonEnc([], 'Account not verified. Please verify your account.', Config::get('constant.UNAUTHORIZED'));
             }
 
@@ -504,14 +534,14 @@ class AuthController extends Controller
                 $user->update([
                     'step_no' => 4,
                     'status' => 'active',
-                    'is_verified' => true,
+                    'is_verified' => false,
                 ]);
 
                 return $this->toJsonEnc([
                     'user' => $user,
                     'step_no' => $user->step_no,
-                    'message' => 'Registration completed successfully!'
-                ], 'Registration completed successfully!', Config::get('constant.SUCCESS'));
+                    'message' => 'Registration completed successfully! Admin is looking into your profile and shortly let you in.'
+                ], 'Registration completed successfully! Admin is reviewing your profile.', Config::get('constant.SUCCESS'));
 
             } else {
                 return $this->toJsonEnc([], 'Invalid step. Please complete previous steps.', Config::get('constant.ERROR'));
