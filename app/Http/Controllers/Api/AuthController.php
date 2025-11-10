@@ -20,34 +20,30 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         try {
-            $existingUser = User::where('email', $request->email)
-                ->where('user_type', $request->user_type)
-                ->first();
+            $existingUser = User::where('email', $request->email)->first();
 
             if ($existingUser) {
-                if ($existingUser->user_type === 'customer') {
-                    if ($existingUser->step_no == 0 && $existingUser->is_verified) {
-                        return $this->toJsonEnc([], 'User already registered. Please login to continue.', Config::get('constant.ERROR'));
-                    }
-                    
-                    if ($existingUser->step_no == 1 && !$existingUser->is_verified) {
-                        UserDevice::where('user_id', $existingUser->id)->delete();
-                        $existingUser->delete();
-                        $existingUser = null;
-                    }
+                // Check if user is fully registered
+                $isFullyRegistered = false;
+                
+                if ($existingUser->user_type === 'customer' && $existingUser->step_no == 0 && $existingUser->is_verified) {
+                    $isFullyRegistered = true;
                 }
                 
-                if ($existingUser && $existingUser->user_type === 'seller') {
-                    if ($existingUser->step_no >= 2) {
-                        return $this->toJsonEnc([], 'User already registered. Please login to continue.', Config::get('constant.ERROR'));
-                    }
-                    
-                    if ($existingUser->step_no == 1) {
-                        UserDevice::where('user_id', $existingUser->id)->delete();
-                        $existingUser->delete();
-                        $existingUser = null;
-                    }
+                if ($existingUser->user_type === 'seller' && $existingUser->step_no == 4 && $existingUser->is_verified) {
+                    $isFullyRegistered = true;
                 }
+                
+                if ($isFullyRegistered) {
+                    return $this->toJsonEnc([
+                        'user_type' => $existingUser->user_type
+                    ], 'User already registered with ' . $existingUser->user_type . ' account. Please login to continue.', Config::get('constant.ERROR'));
+                }
+                
+                // Delete incomplete registration (allow role change)
+                UserDevice::where('user_id', $existingUser->id)->delete();
+                $existingUser->delete();
+                $existingUser = null;
             }
 
             $rules = [
@@ -60,36 +56,16 @@ class AuthController extends Controller
                 'device_type' => 'required|in:A,I',
             ];
 
-            if ($existingUser) {
-                $rules['email'] = 'required|email|unique:users,email,' . $existingUser->id;
-                if ($request->phone) {
-                    $rules['phone'] = 'nullable|string|unique:users,phone,' . $existingUser->id;
-                }
-            } else {
-                $rules['email'] = 'required|email|unique:users,email';
-                if ($request->phone) {
-                    $rules['phone'] = 'nullable|string|unique:users,phone';
-                }
+            // Since we delete incomplete users above, always check uniqueness
+            $rules['email'] = 'required|email|unique:users,email';
+            if ($request->phone) {
+                $rules['phone'] = 'nullable|string|unique:users,phone';
             }
 
             $validator = Validator::make($request->all(), $rules);
 
             if ($validator->fails()) {
-                $errors = $validator->errors();
-                
-                if ($errors->has('email')) {
-                    $checkUser = User::where('email', $request->email)->where('user_type', $request->user_type)->first();
-                    if ($checkUser) {
-                        if ($checkUser->user_type === 'customer' && $checkUser->is_verified && $checkUser->step_no == 0) {
-                            return $this->toJsonEnc([], 'User already registered. Please login to continue.', Config::get('constant.ERROR'));
-                        }
-                        if ($checkUser->user_type === 'seller' && $checkUser->step_no >= 2) {
-                            return $this->toJsonEnc([], 'User already registered. Please login to continue.', Config::get('constant.ERROR'));
-                        }
-                    }
-                }
-                
-                return $this->validateResponse($errors);
+                return $this->validateResponse($validator->errors());
             }
 
             $profileImage = null;
