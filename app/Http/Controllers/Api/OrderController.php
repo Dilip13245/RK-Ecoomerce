@@ -178,7 +178,9 @@ class OrderController extends Controller
 
                 $productImageUrl = null;
                 if ($images && count($images) > 0) {
-                    $productImageUrl = asset('storage/products/' . $images[0]);
+                    // Remove 'products/' prefix if already present to avoid duplication
+                    $imagePath = str_replace('products/', '', $images[0]);
+                    $productImageUrl = asset('storage/products/' . $imagePath);
                 }
 
                 return [
@@ -259,7 +261,9 @@ class OrderController extends Controller
 
                 $productImageUrl = null;
                 if ($images && count($images) > 0) {
-                    $productImageUrl = asset('storage/products/' . $images[0]);
+                    // Remove 'products/' prefix if already present to avoid duplication
+                    $imagePath = str_replace('products/', '', $images[0]);
+                    $productImageUrl = asset('storage/products/' . $imagePath);
                 }
 
                 return [

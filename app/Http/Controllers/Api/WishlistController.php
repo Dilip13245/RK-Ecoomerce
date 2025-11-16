@@ -35,7 +35,9 @@ class WishlistController extends Controller
             $products->transform(function($product) {
                 // Format images with full URLs
                 $product->images = array_map(function($image) {
-                    return asset('storage/products/' . $image);
+                    // Remove 'products/' prefix if already present to avoid duplication
+                    $imagePath = str_replace('products/', '', $image);
+                    return asset('storage/products/' . $imagePath);
                 }, $product->images);
 
                 $product->first_image = $product->images[0] ?? null;

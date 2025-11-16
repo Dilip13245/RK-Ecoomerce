@@ -46,7 +46,7 @@ class ProductController extends Controller
                 'category_id' => 'required|exists:categories,id',
                 'subcategory_id' => 'nullable|exists:sub_categories,id',
                 'images' => 'required|array|min:1',
-                'images.*' => 'image|mimes:jpeg,png,jpg|max:2048',
+                'images.*' => 'image|mimes:jpeg,jpg,png,gif,webp,svg,bmp,ico|max:10240',
                 'specifications' => 'nullable|array',
                 'colors' => 'required|array|min:1',
                 'colors.*.color_name' => 'required|string|max:255',
@@ -94,7 +94,9 @@ class ProductController extends Controller
             
             // Format images with full URLs
             $product->images = array_map(function($image) {
-                return asset('storage/products/' . $image);
+                // Remove 'products/' prefix if already present to avoid duplication
+                $imagePath = str_replace('products/', '', $image);
+                return asset('storage/products/' . $imagePath);
             }, $product->images);
 
             return $this->toJsonEnc($product, 'Product created successfully', Config::get('constant.SUCCESS'));
@@ -107,8 +109,17 @@ class ProductController extends Controller
     public function list(Request $request)
     {
         try {
+            $validator = Validator::make($request->all(), [
+                'user_id' => 'required|exists:users,id',
+            ]);
+
+            if ($validator->fails()) {
+                return $this->validateResponse($validator->errors());
+            }
+
             $query = Product::with(['colors', 'category', 'subcategory'])
-                ->active();
+                ->active()
+                ->where('user_id', $request->user_id);
 
             // Filter by category
             if ($request->filled('category_id')) {
@@ -154,7 +165,9 @@ class ProductController extends Controller
             $products->transform(function($product) use ($wishlistProductIds, $cartProductIds) {
                 // Format images with full URLs
                 $product->images = array_map(function($image) {
-                    return asset('storage/products/' . $image);
+                    // Remove 'products/' prefix if already present to avoid duplication
+                    $imagePath = str_replace('products/', '', $image);
+                    return asset('storage/products/' . $imagePath);
                 }, $product->images);
 
                 // Add first image for listing
@@ -171,6 +184,98 @@ class ProductController extends Controller
             });
 
             return $this->toJsonEnc($products, 'Products retrieved successfully', Config::get('constant.SUCCESS'));
+
+        } catch (\Exception $e) {
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
+        }
+    }
+
+    public function featuredListings(Request $request)
+    {
+        try {
+            $userId = $request->user_id;
+            $wishlistProductIds = [];
+            $cartProductIds = [];
+
+            // Get user's wishlist and cart items
+            if ($userId) {
+                $wishlistProductIds = UserWishlist::where('user_id', $userId)
+                    ->where('is_added', true)
+                    ->pluck('product_id')
+                    ->toArray();
+
+                $cartProductIds = UserCart::where('user_id', $userId)
+                    ->pluck('product_id')
+                    ->toArray();
+            }
+
+            // Helper function to format products
+            $formatProducts = function($products) use ($wishlistProductIds, $cartProductIds) {
+                return $products->transform(function($product) use ($wishlistProductIds, $cartProductIds) {
+                    // Format images with full URLs
+                    $product->images = array_map(function($image) {
+                        // Remove 'products/' prefix if already present to avoid duplication
+                        $imagePath = str_replace('products/', '', $image);
+                        return asset('storage/products/' . $imagePath);
+                    }, $product->images);
+
+                    // Add first image for listing
+                    $product->first_image = $product->images[0] ?? null;
+
+                    // Check if in wishlist/cart
+                    $product->is_in_wishlist = in_array($product->id, $wishlistProductIds);
+                    $product->is_in_cart = in_array($product->id, $cartProductIds);
+
+                    // Check stock availability
+                    $product->is_in_stock = $product->colors->where('stock', '>', 0)->count() > 0;
+
+                    // Calculate discount percentage if discounted_price exists
+                    if ($product->discounted_price && $product->discounted_price < $product->price) {
+                        $discount = $product->price - $product->discounted_price;
+                        $product->discount_percentage = round(($discount / $product->price) * 100, 2);
+                        $product->discount_amount = $discount;
+                    } else {
+                        $product->discount_percentage = 0;
+                        $product->discount_amount = 0;
+                    }
+
+                    return $product;
+                });
+            };
+
+            // New Arrivals - Latest products sorted by created_at desc
+            $newArrivals = Product::with(['colors', 'category', 'subcategory'])
+                ->active()
+                ->orderBy('created_at', 'desc')
+                ->limit(20)
+                ->get();
+
+            $newArrivals = $formatProducts($newArrivals);
+
+            // New Offers - Products with discount, sorted by discount percentage (highest first)
+            $newOffers = Product::with(['colors', 'category', 'subcategory'])
+                ->active()
+                ->whereNotNull('discounted_price')
+                ->whereColumn('discounted_price', '<', 'price')
+                ->get()
+                ->map(function($product) {
+                    // Calculate discount percentage for sorting
+                    $discount = $product->price - $product->discounted_price;
+                    $product->discount_percentage = round(($discount / $product->price) * 100, 2);
+                    return $product;
+                })
+                ->sortByDesc('discount_percentage')
+                ->take(20)
+                ->values();
+
+            $newOffers = $formatProducts($newOffers);
+
+            $result = [
+                'new_arrivals' => $newArrivals,
+                'new_offers' => $newOffers,
+            ];
+
+            return $this->toJsonEnc($result, 'Featured listings retrieved successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
             return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
@@ -198,7 +303,9 @@ class ProductController extends Controller
 
             // Format images with full URLs
             $product->images = array_map(function($image) {
-                return asset('storage/products/' . $image);
+                // Remove 'products/' prefix if already present to avoid duplication
+                $imagePath = str_replace('products/', '', $image);
+                return asset('storage/products/' . $imagePath);
             }, $product->images);
 
             // Check if in wishlist/cart
@@ -384,7 +491,7 @@ class ProductController extends Controller
                 'category_id' => 'required|exists:categories,id',
                 'subcategory_id' => 'nullable|exists:sub_categories,id',
                 'images' => 'nullable|array',
-                'images.*' => 'image|mimes:jpeg,png,jpg|max:2048',
+                'images.*' => 'image|mimes:jpeg,jpg,png,gif,webp,svg,bmp,ico|max:10240',
                 'specifications' => 'nullable|array',
                 'colors' => 'required|array|min:1',
                 'colors.*.color_name' => 'required|string|max:255',
@@ -446,7 +553,9 @@ class ProductController extends Controller
             
             // Format images with full URLs
             $product->images = array_map(function($image) {
-                return asset('storage/products/' . $image);
+                // Remove 'products/' prefix if already present to avoid duplication
+                $imagePath = str_replace('products/', '', $image);
+                return asset('storage/products/' . $imagePath);
             }, $product->images);
 
             return $this->toJsonEnc($product, 'Product updated successfully', Config::get('constant.SUCCESS'));
@@ -497,7 +606,9 @@ class ProductController extends Controller
                 
                 // Format product images
                 $product->images = array_map(function($image) {
-                    return asset('storage/products/' . $image);
+                    // Remove 'products/' prefix if already present to avoid duplication
+                    $imagePath = str_replace('products/', '', $image);
+                    return asset('storage/products/' . $imagePath);
                 }, $product->images);
                 
                 $product->first_image = $product->images[0] ?? null;

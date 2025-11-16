@@ -5,6 +5,9 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\ProductResource\Pages;
 use App\Filament\Resources\ProductResource\RelationManagers;
 use App\Models\Product;
+use App\Models\User;
+use App\Models\Category;
+use App\Models\SubCategory;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -26,19 +29,78 @@ class ProductResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Select::make('user_id')
-                    ->relationship('user', 'name')
-                    ->required()
-                    ->searchable(),
+                    ->label('Seller')
+                    ->options(function () {
+                        return User::where('user_type', 'seller')
+                            ->where('status', 'active')
+                            ->get()
+                            ->mapWithKeys(fn ($user) => [$user->id => "{$user->name} ({$user->email})"])
+                            ->toArray();
+                    })
+                    ->searchable()
+                    ->getSearchResultsUsing(fn (string $search) => 
+                        User::where('user_type', 'seller')
+                            ->where('status', 'active')
+                            ->where(function ($query) use ($search) {
+                                $query->where('name', 'like', "%{$search}%")
+                                      ->orWhere('email', 'like', "%{$search}%");
+                            })
+                            ->limit(50)
+                            ->get()
+                            ->mapWithKeys(fn ($user) => [$user->id => "{$user->name} ({$user->email})"])
+                            ->toArray()
+                    )
+                    ->required(),
                 Forms\Components\TextInput::make('name')
                     ->required()
                     ->maxLength(255),
                 Forms\Components\Select::make('category_id')
-                    ->relationship('category', 'name')
+                    ->label('Category')
+                    ->options(function () {
+                        return Category::active()
+                            ->get()
+                            ->mapWithKeys(fn ($category) => [$category->id => $category->name])
+                            ->toArray();
+                    })
+                    ->searchable()
+                    ->getSearchResultsUsing(fn (string $search) => 
+                        Category::active()
+                            ->where('name', 'like', "%{$search}%")
+                            ->limit(50)
+                            ->get()
+                            ->mapWithKeys(fn ($category) => [$category->id => $category->name])
+                            ->toArray()
+                    )
                     ->required()
-                    ->searchable(),
+                    ->live()
+                    ->afterStateUpdated(fn ($state, callable $set) => $set('subcategory_id', null)),
                 Forms\Components\Select::make('subcategory_id')
-                    ->relationship('subcategory', 'name')
-                    ->searchable(),
+                    ->label('Subcategory')
+                    ->options(function (callable $get) {
+                        $categoryId = $get('category_id');
+                        if (!$categoryId) {
+                            return [];
+                        }
+                        return SubCategory::active()
+                            ->where('category_id', $categoryId)
+                            ->get()
+                            ->mapWithKeys(fn ($subcategory) => [$subcategory->id => $subcategory->name])
+                            ->toArray();
+                    })
+                    ->searchable()
+                    ->getSearchResultsUsing(function (string $search, callable $get) {
+                        $categoryId = $get('category_id');
+                        if (!$categoryId) {
+                            return [];
+                        }
+                        return SubCategory::active()
+                            ->where('category_id', $categoryId)
+                            ->where('name', 'like', "%{$search}%")
+                            ->limit(50)
+                            ->get()
+                            ->mapWithKeys(fn ($subcategory) => [$subcategory->id => $subcategory->name])
+                            ->toArray();
+                    }),
                 Forms\Components\TextInput::make('price')
                     ->required()
                     ->numeric()
@@ -77,7 +139,14 @@ class ProductResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\ImageColumn::make('images')
-                    ->getStateUsing(fn ($record) => $record->images && is_array($record->images) ? 'products/' . $record->images[0] : null)
+                    ->getStateUsing(function ($record) {
+                        if (!$record->images || !is_array($record->images) || empty($record->images)) {
+                            return null;
+                        }
+                        // Remove 'products/' prefix if already present to avoid duplication
+                        $imagePath = str_replace('products/', '', $record->images[0]);
+                        return 'products/' . $imagePath;
+                    })
                     ->disk('public')
                     ->label('Image')
                     ->square(),

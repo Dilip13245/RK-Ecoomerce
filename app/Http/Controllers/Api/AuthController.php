@@ -56,7 +56,7 @@ class AuthController extends Controller
                 'phone' => 'nullable|string',
                 'password' => 'required|string|min:6',
                 'user_type' => 'required|in:customer,seller',
-                'profile_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+                'profile_image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,svg,bmp,ico|max:10240',
                 'device_type' => 'required|in:A,I',
             ];
 
@@ -491,7 +491,7 @@ class AuthController extends Controller
 
             if ($user->step_no == 2) {
                 $validator = Validator::make($request->all(), [
-                    'government_id' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+                    'government_id' => 'required|image|mimes:jpeg,jpg,png,gif,webp,svg,bmp,ico|max:10240',
                 ]);
 
                 if ($validator->fails()) {

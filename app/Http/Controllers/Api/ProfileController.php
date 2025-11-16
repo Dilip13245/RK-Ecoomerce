@@ -38,7 +38,7 @@ class ProfileController extends Controller
                 'name' => 'required|string|max:255',
                 'email' => 'required|email|unique:users,email,' . $request->user_id,
                 'phone' => 'required|string|unique:users,phone,' . $request->user_id,
-                'profile_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+                'profile_image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,svg,bmp,ico|max:10240',
             ]);
 
             if ($validator->fails()) {
@@ -158,7 +158,6 @@ class ProfileController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'id' => 'required|integer|exists:bank_details,id',
                 'account_holder_name' => 'required|string|max:255',
                 'account_number' => 'required|string|max:20',
                 'ifsc_code' => 'required|string|max:11',
@@ -175,8 +174,9 @@ class ProfileController extends Controller
                 return $this->toJsonEnc([], 'Only sellers can update bank details', Config::get('constant.INACTIVE'));
             }
 
-            $bankDetail = BankDetail::where('id', $request->id)
-                ->where('user_id', $request->user_id)
+            // Fetch bank details directly using user_id
+            $bankDetail = BankDetail::where('user_id', $request->user_id)
+                ->where('is_deleted', false)
                 ->first();
 
             if (!$bankDetail) {
