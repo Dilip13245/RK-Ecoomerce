@@ -190,14 +190,13 @@ class ProductController extends Controller
         }
     }
 
-    public function featuredListings(Request $request)
+    public function newArrivals(Request $request)
     {
         try {
             $userId = $request->user_id;
             $wishlistProductIds = [];
             $cartProductIds = [];
 
-            // Get user's wishlist and cart items
             if ($userId) {
                 $wishlistProductIds = UserWishlist::where('user_id', $userId)
                     ->where('is_added', true)
@@ -209,73 +208,81 @@ class ProductController extends Controller
                     ->toArray();
             }
 
-            // Helper function to format products
-            $formatProducts = function($products) use ($wishlistProductIds, $cartProductIds) {
-                return $products->transform(function($product) use ($wishlistProductIds, $cartProductIds) {
-                    // Format images with full URLs
-                    $product->images = array_map(function($image) {
-                        // Remove 'products/' prefix if already present to avoid duplication
-                        $imagePath = str_replace('products/', '', $image);
-                        return asset('storage/products/' . $imagePath);
-                    }, $product->images);
-
-                    // Add first image for listing
-                    $product->first_image = $product->images[0] ?? null;
-
-                    // Check if in wishlist/cart
-                    $product->is_in_wishlist = in_array($product->id, $wishlistProductIds);
-                    $product->is_in_cart = in_array($product->id, $cartProductIds);
-
-                    // Check stock availability
-                    $product->is_in_stock = $product->colors->where('stock', '>', 0)->count() > 0;
-
-                    // Calculate discount percentage if discounted_price exists
-                    if ($product->discounted_price && $product->discounted_price < $product->price) {
-                        $discount = $product->price - $product->discounted_price;
-                        $product->discount_percentage = round(($discount / $product->price) * 100, 2);
-                        $product->discount_amount = $discount;
-                    } else {
-                        $product->discount_percentage = 0;
-                        $product->discount_amount = 0;
-                    }
-
-                    return $product;
-                });
-            };
-
-            // New Arrivals - Latest products sorted by created_at desc
-            $newArrivals = Product::with(['colors', 'category', 'subcategory'])
+            $products = Product::with(['colors', 'category', 'subcategory'])
                 ->active()
                 ->orderBy('created_at', 'desc')
                 ->limit(20)
                 ->get();
 
-            $newArrivals = $formatProducts($newArrivals);
+            $products->transform(function($product) use ($wishlistProductIds, $cartProductIds) {
+                $product->images = array_map(function($image) {
+                    $imagePath = str_replace('products/', '', $image);
+                    return asset('storage/products/' . $imagePath);
+                }, $product->images);
 
-            // New Offers - Products with discount, sorted by discount percentage (highest first)
-            $newOffers = Product::with(['colors', 'category', 'subcategory'])
+                $product->first_image = $product->images[0] ?? null;
+                $product->is_in_wishlist = in_array($product->id, $wishlistProductIds);
+                $product->is_in_cart = in_array($product->id, $cartProductIds);
+                $product->is_in_stock = $product->colors->where('stock', '>', 0)->count() > 0;
+
+                return $product;
+            });
+
+            return $this->toJsonEnc($products, 'New arrivals retrieved successfully', Config::get('constant.SUCCESS'));
+
+        } catch (\Exception $e) {
+            return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));
+        }
+    }
+
+    public function newOffers(Request $request)
+    {
+        try {
+            $userId = $request->user_id;
+            $wishlistProductIds = [];
+            $cartProductIds = [];
+
+            if ($userId) {
+                $wishlistProductIds = UserWishlist::where('user_id', $userId)
+                    ->where('is_added', true)
+                    ->pluck('product_id')
+                    ->toArray();
+
+                $cartProductIds = UserCart::where('user_id', $userId)
+                    ->pluck('product_id')
+                    ->toArray();
+            }
+
+            $products = Product::with(['colors', 'category', 'subcategory'])
                 ->active()
                 ->whereNotNull('discounted_price')
                 ->whereColumn('discounted_price', '<', 'price')
                 ->get()
                 ->map(function($product) {
-                    // Calculate discount percentage for sorting
                     $discount = $product->price - $product->discounted_price;
                     $product->discount_percentage = round(($discount / $product->price) * 100, 2);
+                    $product->discount_amount = $discount;
                     return $product;
                 })
                 ->sortByDesc('discount_percentage')
                 ->take(20)
                 ->values();
 
-            $newOffers = $formatProducts($newOffers);
+            $products->transform(function($product) use ($wishlistProductIds, $cartProductIds) {
+                $product->images = array_map(function($image) {
+                    $imagePath = str_replace('products/', '', $image);
+                    return asset('storage/products/' . $imagePath);
+                }, $product->images);
 
-            $result = [
-                'new_arrivals' => $newArrivals,
-                'new_offers' => $newOffers,
-            ];
+                $product->first_image = $product->images[0] ?? null;
+                $product->is_in_wishlist = in_array($product->id, $wishlistProductIds);
+                $product->is_in_cart = in_array($product->id, $cartProductIds);
+                $product->is_in_stock = $product->colors->where('stock', '>', 0)->count() > 0;
 
-            return $this->toJsonEnc($result, 'Featured listings retrieved successfully', Config::get('constant.SUCCESS'));
+                return $product;
+            });
+
+            return $this->toJsonEnc($products, 'New offers retrieved successfully', Config::get('constant.SUCCESS'));
 
         } catch (\Exception $e) {
             return $this->toJsonEnc([], $e->getMessage(), Config::get('constant.INTERNAL_ERROR'));

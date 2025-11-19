@@ -63,7 +63,8 @@ Route::prefix('user')->middleware(['tokencheck'])->group(function () {
         Route::post('/create', [\App\Http\Controllers\Api\ProductController::class, 'create']);
         Route::post('/edit', [\App\Http\Controllers\Api\ProductController::class, 'edit']);
         Route::get('/list', [\App\Http\Controllers\Api\ProductController::class, 'list']);
-        Route::get('/featured-listings', [\App\Http\Controllers\Api\ProductController::class, 'featuredListings']);
+        Route::get('/new-arrivals', [\App\Http\Controllers\Api\ProductController::class, 'newArrivals']);
+        Route::get('/new-offers', [\App\Http\Controllers\Api\ProductController::class, 'newOffers']);
         Route::get('/detail', [\App\Http\Controllers\Api\ProductController::class, 'detail']);
         Route::post('/wishlist/add', [\App\Http\Controllers\Api\ProductController::class, 'addToWishlist']);
         Route::post('/wishlist/remove', [\App\Http\Controllers\Api\ProductController::class, 'removeFromWishlist']);
