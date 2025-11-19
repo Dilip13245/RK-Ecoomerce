@@ -300,7 +300,15 @@ class ProductController extends Controller
                 return $this->validateResponse($validator->errors());
             }
 
-            $product = Product::with(['colors', 'category', 'subcategory', 'reviews.user'])
+            $product = Product::with([
+                    'colors',
+                    'category',
+                    'subcategory',
+                    'reviews.user',
+                    'user.addresses' => function ($query) {
+                        $query->active();
+                    },
+                ])
                 ->active()
                 ->find($request->product_id);
 
@@ -333,6 +341,47 @@ class ProductController extends Controller
 
             // Check stock availability
             $product->is_in_stock = $product->colors->where('stock', '>', 0)->count() > 0;
+
+            // Attach seller information for storefront detail view
+            if ($product->relationLoaded('user') && $product->user) {
+                $seller = $product->user;
+
+                $sellerReviewsQuery = ProductReview::whereHas('product', function($query) use ($seller) {
+                    $query->where('user_id', $seller->id)->active();
+                });
+
+                $sellerRating = (clone $sellerReviewsQuery)->avg('rating');
+                $sellerRatingCount = (clone $sellerReviewsQuery)->count();
+
+                $sellerAddress = $seller->relationLoaded('addresses')
+                    ? $seller->addresses->first()
+                    : null;
+
+                if (!$sellerAddress) {
+                    $sellerAddress = \App\Models\UserAddress::where('user_id', $seller->id)
+                        ->active()
+                        ->first();
+                }
+
+                $locationParts = $sellerAddress
+                    ? array_filter([
+                        $sellerAddress->building_name,
+                        $sellerAddress->area_street,
+                        $sellerAddress->state,
+                    ])
+                    : [];
+
+                $product->seller_info = [
+                    'id' => $seller->id,
+                    'name' => $seller->name,
+                    'rating' => $sellerRating ? round($sellerRating, 1) : null,
+                    'rating_count' => $sellerRatingCount,
+                    'location' => $locationParts ? implode(', ', $locationParts) : null,
+                ];
+
+                // Avoid leaking full seller user payload
+                $product->setRelation('user', null);
+            }
 
             // Format reviews
             $product->reviews->transform(function($review) {

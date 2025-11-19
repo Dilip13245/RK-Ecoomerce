@@ -111,6 +111,17 @@ class SellerOrderController extends Controller
                 $productImageUrl = asset('storage/products/' . $imagePath);
             }
 
+            $priceBreakdown = null;
+            if ($orderItem->order) {
+                $priceBreakdown = [
+                    'subtotal' => $orderItem->order->subtotal,
+                    'discount' => $orderItem->order->discount_amount,
+                    'shipping_charges' => $orderItem->order->shipping_charges,
+                    'total_amount' => $orderItem->order->total_amount,
+                    'coupon_code' => $orderItem->order->coupon_code,
+                ];
+            }
+
             $orderData = [
                 'order_id' => $orderItem->order_id,
                 'item_id' => $orderItem->id,
@@ -126,6 +137,7 @@ class SellerOrderController extends Controller
                 'item_status' => $orderItem->item_status,
                 'payment_method' => $orderItem->order ? $orderItem->order->payment_method : null,
                 'created_at' => $orderItem->created_at,
+                'price_breakdown' => $priceBreakdown,
                 'shipping_address' => ($orderItem->order && $orderItem->order->address) ? [
                     'name' => $orderItem->order->address->full_name,
                     'block_number' => $orderItem->order->address->block_number,

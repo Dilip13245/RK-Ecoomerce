@@ -9,6 +9,7 @@ use App\Models\UserCart;
 use App\Models\ProductColor;
 use App\Models\UserAddress;
 use App\Models\Coupon;
+use App\Models\BankDetail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -156,7 +157,10 @@ class OrderController extends Controller
             $order = Order::with([
                 'orderItems.product',
                 'orderItems.productColor',
-                'orderItems.seller',
+                'orderItems.seller.bankDetails' => function ($query) {
+                    $query->where('is_active', true)
+                        ->where('is_deleted', false);
+                },
                 'address'
             ])->where('id', $orderId)
                 ->where('user_id', $request->user_id)
@@ -183,6 +187,18 @@ class OrderController extends Controller
                     $productImageUrl = asset('storage/products/' . $imagePath);
                 }
 
+                $sellerBank = null;
+                if ($item->seller && $item->seller->relationLoaded('bankDetails')) {
+                    $sellerBank = $item->seller->bankDetails->first();
+                }
+
+                if (!$sellerBank && $item->seller_id) {
+                    $sellerBank = BankDetail::where('user_id', $item->seller_id)
+                        ->where('is_active', true)
+                        ->where('is_deleted', false)
+                        ->first();
+                }
+
                 return [
                     'id' => $item->id,
                     'product_id' => $item->product_id,
@@ -195,6 +211,11 @@ class OrderController extends Controller
                     'item_status' => $item->item_status,
                     'product_image' => $productImageUrl,
                     'seller_name' => $item->seller ? $item->seller->name : null,
+                    'seller_bank_details' => $sellerBank ? [
+                        'account_holder_name' => $sellerBank->account_holder_name,
+                        'account_number' => $sellerBank->account_number,
+                        'ifsc_code' => $sellerBank->ifsc_code,
+                    ] : null,
                 ];
             })->toArray();
 
